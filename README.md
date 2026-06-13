@@ -20,3 +20,5 @@ CREATE TABLE tokens (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 ```
+
+## Update
