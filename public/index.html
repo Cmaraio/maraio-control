@@ -277,38 +277,40 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
   <!-- maraio panel -->
   <div id="ads-panel-maraio">
     <div class="card" style="padding:12px;margin-bottom:10px;">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:0;">📋 Exportá desde ML Ads → Product Ads → Reportes → Reporte de anuncios. Cargá el archivo de <strong>maraio</strong> acá.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:6px;">📋 Cargá los <strong>dos archivos</strong> de maraio: Reporte de anuncios + Reporte de campañas.</p>
+      <div id="files-list-maraio" style="display:none;"></div>
     </div>
     <div class="uz" id="uz-maraio" onclick="document.getElementById('ci-maraio').click()" ondragover="dragOver(event,'maraio')" ondragleave="dragLeave('maraio')" ondrop="dropFile(event,'maraio')">
       <input type="file" id="ci-maraio" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio')">
       <div style="font-size:24px;margin-bottom:6px;">📂</div>
       <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio acá</div>
-      <div style="color:var(--text2);font-size:12px;">Acepta .xlsx y .csv</div>
+      <div style="color:var(--text2);font-size:12px;">Podés cargar los 2 juntos · Acepta .xlsx y .csv</div>
     </div>
     <div id="ads-summary-maraio" style="display:none;">
       <div class="mg" id="ads-metrics-maraio"></div>
       <div id="camps-list-maraio"></div>
       <button class="btn btn-s btn-sm" onclick="clearAds('maraio')" style="margin-top:4px;">Limpiar datos maraio</button>
     </div>
-    <div id="ads-empty-maraio"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio</h3><p>Cargá el reporte de ML Ads</p></div></div>
+    <div id="ads-empty-maraio"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio</h3><p>Cargá los dos reportes de ML Ads</p></div></div>
   </div>
   <!-- maraio2 panel -->
   <div id="ads-panel-maraio2" style="display:none;">
     <div class="card" style="padding:12px;margin-bottom:10px;">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:0;">📋 Exportá desde ML Ads → Product Ads → Reportes → Reporte de anuncios. Cargá el archivo de <strong>maraio2</strong> acá.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:6px;">📋 Cargá los <strong>dos archivos</strong> de maraio2: Reporte de anuncios + Reporte de campañas.</p>
+      <div id="files-list-maraio2" style="display:none;"></div>
     </div>
     <div class="uz" id="uz-maraio2" onclick="document.getElementById('ci-maraio2').click()" ondragover="dragOver(event,'maraio2')" ondragleave="dragLeave('maraio2')" ondrop="dropFile(event,'maraio2')">
       <input type="file" id="ci-maraio2" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio2')">
       <div style="font-size:24px;margin-bottom:6px;">📂</div>
       <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio2 acá</div>
-      <div style="color:var(--text2);font-size:12px;">Acepta .xlsx y .csv</div>
+      <div style="color:var(--text2);font-size:12px;">Podés cargar los 2 juntos · Acepta .xlsx y .csv</div>
     </div>
     <div id="ads-summary-maraio2" style="display:none;">
       <div class="mg" id="ads-metrics-maraio2"></div>
       <div id="camps-list-maraio2"></div>
       <button class="btn btn-s btn-sm" onclick="clearAds('maraio2')" style="margin-top:4px;">Limpiar datos maraio2</button>
     </div>
-    <div id="ads-empty-maraio2"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio2</h3><p>Cargá el reporte de ML Ads</p></div></div>
+    <div id="ads-empty-maraio2"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio2</h3><p>Cargá los dos reportes de ML Ads</p></div></div>
   </div>
 </div>
 
@@ -430,7 +432,8 @@ let S={
   accounts:{maraio:{connected:false,userId:null},maraio2:{connected:false,userId:null}},
   ovAcc:'maraio',salesAcc:'maraio',adsAcc:'maraio',decAcc:'maraio',pendingAuth:null,
   ads:{maraio:[],maraio2:[]},
-  campData:{maraio:{},maraio2:{}}, // campaign-level data from campaigns report
+  campData:{maraio:{},maraio2:{}},
+  loadedFiles:{maraio:[],maraio2:[]}, // track loaded files with name, date, type
   roasTargets:JSON.parse(localStorage.getItem('maraio_roas_targets')||'{}'),
   chatAddItems:{maraio:[],maraio2:[]},
   skuOverrides:{},chatHistory:[]
@@ -747,13 +750,11 @@ function readXLSXWithLib(file,acc){
   reader.onload=function(e){
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
-      // Detect if this is a campaigns report or ads report
-      const isCampaignsReport=wb.SheetNames.some(n=>n.toLowerCase().includes('campaña'));
-      const dataSheet=wb.SheetNames.find(n=>
-        n.toLowerCase().includes('campaña')||
-        n.toLowerCase().includes('anuncio')||
-        n.toLowerCase().includes('reporte por')
-      )||wb.SheetNames[wb.SheetNames.length-1];
+      // Detect report type by sheet name
+      const isCampaignsReport=wb.SheetNames.some(n=>n.toLowerCase().includes('reporte por campa'));
+      const dataSheet=isCampaignsReport
+        ? wb.SheetNames.find(n=>n.toLowerCase().includes('reporte por campa'))
+        : wb.SheetNames.find(n=>n.toLowerCase().includes('anuncio')||n.toLowerCase().includes('reporte por'))||wb.SheetNames[wb.SheetNames.length-1];
       const ws=wb.Sheets[dataSheet];const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       let headerRow=-1;
       for(let i=0;i<Math.min(raw.length,10);i++){
@@ -765,9 +766,7 @@ function readXLSXWithLib(file,acc){
       const dataRows=raw.slice(headerRow+1).filter(r=>r.some(c=>c!==''));
       const text=[headers.join('\t'),...dataRows.map(r=>r.map(c=>c===null||c===undefined?'':String(c)).join('\t'))].join('\n');
 
-      // Check if this is campaigns report (has "nombre de campaña" or "roas objetivo" or "presupuesto")
-      const isCampReport=headers.some(h=>h.includes('nombre de campaña')||h.includes('roas objetivo')||h.includes('presupuesto'));
-      if(isCampReport){
+      if(isCampaignsReport){
         parseCampaignsReport(text,file.name,acc);
       } else {
         parseMLReport(text,file.name,'tsv',acc);
@@ -820,6 +819,10 @@ function parseCampaignsReport(text,filename,acc){
   }
   const count=Object.keys(S.campData[acc]).length;
   const active=Object.values(S.campData[acc]).filter(c=>c.isActive).length;
+  // Track loaded file
+  S.loadedFiles[acc]=S.loadedFiles[acc].filter(f=>f.type!=='campaigns');
+  S.loadedFiles[acc].push({name:filename,date:new Date().toLocaleString('es-AR'),type:'campaigns',info:`${active} activas de ${count}`});
+  renderFilesList(acc);
   toast(`✅ Reporte de campañas de ${acc}: ${active} activas de ${count} total`,'success');
   renderAdsForAccount(acc);
   buildDecisions();
@@ -858,6 +861,10 @@ function parseMLReport(text,filename,format,acc){
   }
   if(!ads.length){toast('No se encontraron datos en '+filename,'error');return;}
   S.ads[acc]=[...S.ads[acc].filter(a=>a.source!==filename),...ads];
+  // Track loaded file
+  S.loadedFiles[acc]=S.loadedFiles[acc].filter(f=>f.name!==filename);
+  S.loadedFiles[acc].push({name:filename,date:new Date().toLocaleString('es-AR'),type:'ads',info:`${ads.length} anuncios`});
+  renderFilesList(acc);
   // Save to Supabase
   saveAdsData(acc);
   renderAdsForAccount(acc);
@@ -886,9 +893,35 @@ async function loadAdsData(acc){
 
 function clearAds(acc){
   S.ads[acc]=[];
+  S.campData[acc]={};
+  S.loadedFiles[acc]=[];
   saveAdsData(acc);
   renderAdsForAccount(acc);
+  renderFilesList(acc);
   buildDecisions();
+}
+
+function renderFilesList(acc){
+  const el=$('files-list-'+acc);
+  if(!el)return;
+  const files=S.loadedFiles[acc]||[];
+  if(!files.length){el.style.display='none';return;}
+  const hasCampaigns=files.some(f=>f.type==='campaigns');
+  const hasAds=files.some(f=>f.type==='ads');
+  el.style.display='block';
+  el.innerHTML=`
+    <div style="margin-top:6px;">
+      ${!hasCampaigns?'<div style="font-size:11px;color:var(--yellow);margin-bottom:4px;">⚠️ Falta el reporte de campañas para filtrar correctamente</div>':''}
+      ${files.map(f=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,48,80,.3);">
+          <span style="font-size:14px;">${f.type==='campaigns'?'📊':'📈'}</span>
+          <div style="flex:1;">
+            <div style="font-size:11px;font-weight:500;color:var(--text);">${f.type==='campaigns'?'Reporte de campañas':'Reporte de anuncios'} <span class="tag ${f.type==='campaigns'?'tg':'tb'}" style="font-size:9px;">${f.info}</span></div>
+            <div style="font-size:10px;color:var(--text3);">${f.name.substring(0,45)}${f.name.length>45?'...':''}</div>
+            <div style="font-size:10px;color:var(--text3);">Cargado: ${f.date}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
 }
 
 function renderAdsForAccount(acc){
