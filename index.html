@@ -277,38 +277,40 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
   <!-- maraio panel -->
   <div id="ads-panel-maraio">
     <div class="card" style="padding:12px;margin-bottom:10px;">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:0;">📋 Exportá desde ML Ads → Product Ads → Reportes → Reporte de anuncios. Cargá el archivo de <strong>maraio</strong> acá.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:6px;">📋 Cargá los <strong>dos archivos</strong> de maraio: Reporte de anuncios + Reporte de campañas.</p>
+      <div id="files-list-maraio" style="display:none;"></div>
     </div>
     <div class="uz" id="uz-maraio" onclick="document.getElementById('ci-maraio').click()" ondragover="dragOver(event,'maraio')" ondragleave="dragLeave('maraio')" ondrop="dropFile(event,'maraio')">
       <input type="file" id="ci-maraio" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio')">
       <div style="font-size:24px;margin-bottom:6px;">📂</div>
       <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio acá</div>
-      <div style="color:var(--text2);font-size:12px;">Acepta .xlsx y .csv</div>
+      <div style="color:var(--text2);font-size:12px;">Podés cargar los 2 juntos · Acepta .xlsx y .csv</div>
     </div>
     <div id="ads-summary-maraio" style="display:none;">
       <div class="mg" id="ads-metrics-maraio"></div>
       <div id="camps-list-maraio"></div>
       <button class="btn btn-s btn-sm" onclick="clearAds('maraio')" style="margin-top:4px;">Limpiar datos maraio</button>
     </div>
-    <div id="ads-empty-maraio"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio</h3><p>Cargá el reporte de ML Ads</p></div></div>
+    <div id="ads-empty-maraio"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio</h3><p>Cargá los dos reportes de ML Ads</p></div></div>
   </div>
   <!-- maraio2 panel -->
   <div id="ads-panel-maraio2" style="display:none;">
     <div class="card" style="padding:12px;margin-bottom:10px;">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:0;">📋 Exportá desde ML Ads → Product Ads → Reportes → Reporte de anuncios. Cargá el archivo de <strong>maraio2</strong> acá.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:6px;">📋 Cargá los <strong>dos archivos</strong> de maraio2: Reporte de anuncios + Reporte de campañas.</p>
+      <div id="files-list-maraio2" style="display:none;"></div>
     </div>
     <div class="uz" id="uz-maraio2" onclick="document.getElementById('ci-maraio2').click()" ondragover="dragOver(event,'maraio2')" ondragleave="dragLeave('maraio2')" ondrop="dropFile(event,'maraio2')">
       <input type="file" id="ci-maraio2" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio2')">
       <div style="font-size:24px;margin-bottom:6px;">📂</div>
       <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio2 acá</div>
-      <div style="color:var(--text2);font-size:12px;">Acepta .xlsx y .csv</div>
+      <div style="color:var(--text2);font-size:12px;">Podés cargar los 2 juntos · Acepta .xlsx y .csv</div>
     </div>
     <div id="ads-summary-maraio2" style="display:none;">
       <div class="mg" id="ads-metrics-maraio2"></div>
       <div id="camps-list-maraio2"></div>
       <button class="btn btn-s btn-sm" onclick="clearAds('maraio2')" style="margin-top:4px;">Limpiar datos maraio2</button>
     </div>
-    <div id="ads-empty-maraio2"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio2</h3><p>Cargá el reporte de ML Ads</p></div></div>
+    <div id="ads-empty-maraio2"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio2</h3><p>Cargá los dos reportes de ML Ads</p></div></div>
   </div>
 </div>
 
@@ -430,13 +432,44 @@ let S={
   accounts:{maraio:{connected:false,userId:null},maraio2:{connected:false,userId:null}},
   ovAcc:'maraio',salesAcc:'maraio',adsAcc:'maraio',decAcc:'maraio',pendingAuth:null,
   ads:{maraio:[],maraio2:[]},
-  chatAddItems:{maraio:[],maraio2:[]}, // items suggested from chat
+  campData:{maraio:{},maraio2:{}},
+  loadedFiles:{maraio:[],maraio2:[]}, // track loaded files with name, date, type
+  roasTargets:JSON.parse(localStorage.getItem('maraio_roas_targets')||'{}'),
+  chatAddItems:{maraio:[],maraio2:[]},
   skuOverrides:{},chatHistory:[]
 };
 let allListings=[],skuMap={};
 let checklist={maraio:JSON.parse(localStorage.getItem('maraio_checklist_m')||'{}'),maraio2:JSON.parse(localStorage.getItem('maraio_checklist_m2')||'{}')};
 let allDecisions={maraio:[],maraio2:[]};
 let decTabs={maraio:'roas',maraio2:'roas'};
+
+function setRoasTarget(acc,campName,value){
+  const key=`${acc}_${campName}`;
+  const val=parseFloat(value);
+  if(val>=1&&val<=35){
+    S.roasTargets[key]=val;
+  } else {
+    delete S.roasTargets[key];
+  }
+  localStorage.setItem('maraio_roas_targets',JSON.stringify(S.roasTargets));
+  // Rebuild decisions with new target
+  buildDecisions();
+}
+
+function getRoasRecommendationText(roasReal,roasObj,campName){
+  const ratio=roasReal/roasObj;
+  if(ratio>=0.9&&ratio<=1.3) return `<span style="color:var(--green);">✓ En objetivo — no tocar</span>`;
+  if(ratio>1.3){
+    const newTarget=Math.min(35,Math.round(roasObj+2));
+    return `<span style="color:var(--green);">↑ Subir de ${roasObj}x a ${newTarget}x (+2) — revisá en 7 días</span>`;
+  }
+  if(ratio>=0.5){
+    const newTarget=Math.max(1,Math.round(roasObj-2));
+    return `<span style="color:var(--yellow);">↓ Bajar de ${roasObj}x a ${newTarget}x (-2) — revisá en 7 días</span>`;
+  }
+  const newTarget=Math.max(1,Math.round(roasObj-4));
+  return `<span style="color:var(--red);">↓↓ Bajar de ${roasObj}x a ${newTarget}x urgente — ROAS muy bajo</span>`;
+}
 
 const $=id=>document.getElementById(id);
 function toast(msg,type='info'){const c=$('tc'),el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;c.appendChild(el);setTimeout(()=>el.remove(),4000);}
@@ -717,24 +750,82 @@ function readXLSXWithLib(file,acc){
   reader.onload=function(e){
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
-      const dataSheet=wb.SheetNames.find(n=>n.toLowerCase().includes('anuncio')||n.toLowerCase().includes('reporte por'))||wb.SheetNames[wb.SheetNames.length-1];
+      // Detect report type by sheet name
+      const isCampaignsReport=wb.SheetNames.some(n=>n.toLowerCase().includes('reporte por campa'));
+      const dataSheet=isCampaignsReport
+        ? wb.SheetNames.find(n=>n.toLowerCase().includes('reporte por campa'))
+        : wb.SheetNames.find(n=>n.toLowerCase().includes('anuncio')||n.toLowerCase().includes('reporte por'))||wb.SheetNames[wb.SheetNames.length-1];
       const ws=wb.Sheets[dataSheet];const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       let headerRow=-1;
       for(let i=0;i<Math.min(raw.length,10);i++){
         const rowStr=raw[i].map(c=>String(c||'').toLowerCase().replace(/\n/g,' ')).join('|');
-        if(rowStr.includes('campaña')||rowStr.includes('desde')||rowStr.includes('estado')){headerRow=i;break;}
+        if(rowStr.includes('campaña')||rowStr.includes('desde')||rowStr.includes('estado')||rowStr.includes('nombre de campaña')){headerRow=i;break;}
       }
       if(headerRow===-1){toast('No se encontró el encabezado en '+file.name,'error');return;}
       const headers=raw[headerRow].map(h=>String(h||'').replace(/\n/g,' ').replace(/\s+/g,' ').trim().toLowerCase());
       const dataRows=raw.slice(headerRow+1).filter(r=>r.some(c=>c!==''));
       const text=[headers.join('\t'),...dataRows.map(r=>r.map(c=>c===null||c===undefined?'':String(c)).join('\t'))].join('\n');
-      parseMLReport(text,file.name,'tsv',acc);
+
+      if(isCampaignsReport){
+        parseCampaignsReport(text,file.name,acc);
+      } else {
+        parseMLReport(text,file.name,'tsv',acc);
+      }
     }catch(err){toast('Error leyendo '+file.name+': '+err.message,'error');}
   };
   reader.readAsArrayBuffer(file);
 }
 
 const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
+
+function parseCampaignsReport(text,filename,acc){
+  const lines=text.split('\n').filter(l=>l.trim());
+  if(lines.length<2){toast('Reporte de campañas vacío: '+filename,'error');return;}
+  const headers=lines[0].split('\t').map(h=>h.trim().replace(/\n/g,' ').toLowerCase());
+  
+  // Flexible header matching
+  const nameIdx=headers.findIndex(h=>h.includes('nombre de campa')||h==='campaña'||h.includes('nombre'));
+  const statusIdx=headers.findIndex(h=>h==='estado'||h.includes('estado'));
+  const budgetIdx=headers.findIndex(h=>h.includes('presupuesto'));
+  const roasObjIdx=headers.findIndex(h=>h.includes('roas objetivo'));
+  const impressionsIdx=headers.findIndex(h=>h==='impresiones'||h.includes('impresiones'));
+
+  // Fallback: if nameIdx not found, use column 0 (ML always puts name first)
+  const nIdx=nameIdx>=0?nameIdx:0;
+  const sIdx=statusIdx>=0?statusIdx:1;
+  const bIdx=budgetIdx>=0?budgetIdx:2;
+  const rIdx=roasObjIdx>=0?roasObjIdx:3;
+
+  S.campData[acc]={};
+  for(const line of lines.slice(1)){
+    const vals=line.split('\t').map(v=>v.trim());
+    if(!vals[nIdx]||vals[nIdx]==='-') continue;
+    const name=vals[nIdx];
+    const status=vals[sIdx]||'';
+    const budget=parseFloat(String(vals[bIdx]||'').replace(/[^0-9.]/g,''))||0;
+    const roasObjRaw=vals[rIdx]||'';
+    const roasObj=roasObjRaw&&roasObjRaw!=='-'&&roasObjRaw!=='0'?parseFloat(roasObjRaw)||null:null;
+    const impressions=vals[impressionsIdx]?parseFloat(String(vals[impressionsIdx]).replace(/[^0-9.]/g,''))||0:0;
+    S.campData[acc][name]={
+      name,
+      status:status.trim(),
+      isActive:status.toLowerCase().includes('activa')||status.toLowerCase().includes('activo'),
+      budget,roasObj,impressions
+    };
+    if(roasObj){
+      const key=`${acc}_${name}`;
+      if(!S.roasTargets[key]){S.roasTargets[key]=roasObj;localStorage.setItem('maraio_roas_targets',JSON.stringify(S.roasTargets));}
+    }
+  }
+  const count=Object.keys(S.campData[acc]).length;
+  const active=Object.values(S.campData[acc]).filter(c=>c.isActive).length;
+  S.loadedFiles[acc]=S.loadedFiles[acc].filter(f=>f.type!=='campaigns');
+  S.loadedFiles[acc].push({name:filename,date:new Date().toLocaleString('es-AR'),type:'campaigns',info:`${active} activas de ${count}`});
+  renderFilesList(acc);
+  toast(`✅ Reporte de campañas de ${acc}: ${active} activas de ${count} total`,'success');
+  renderAdsForAccount(acc);
+  buildDecisions();
+}
 
 function parseMLReport(text,filename,format,acc){
   const delim=format==='tsv'?'\t':(text.split('\n')[0].split('\t').length>3?'\t':text.split('\n')[0].split(';').length>text.split('\n')[0].split(',').length?';':',');
@@ -769,6 +860,10 @@ function parseMLReport(text,filename,format,acc){
   }
   if(!ads.length){toast('No se encontraron datos en '+filename,'error');return;}
   S.ads[acc]=[...S.ads[acc].filter(a=>a.source!==filename),...ads];
+  // Track loaded file
+  S.loadedFiles[acc]=S.loadedFiles[acc].filter(f=>f.name!==filename);
+  S.loadedFiles[acc].push({name:filename,date:new Date().toLocaleString('es-AR'),type:'ads',info:`${ads.length} anuncios`});
+  renderFilesList(acc);
   // Save to Supabase
   saveAdsData(acc);
   renderAdsForAccount(acc);
@@ -797,9 +892,35 @@ async function loadAdsData(acc){
 
 function clearAds(acc){
   S.ads[acc]=[];
+  S.campData[acc]={};
+  S.loadedFiles[acc]=[];
   saveAdsData(acc);
   renderAdsForAccount(acc);
+  renderFilesList(acc);
   buildDecisions();
+}
+
+function renderFilesList(acc){
+  const el=$('files-list-'+acc);
+  if(!el)return;
+  const files=S.loadedFiles[acc]||[];
+  if(!files.length){el.style.display='none';return;}
+  const hasCampaigns=files.some(f=>f.type==='campaigns');
+  const hasAds=files.some(f=>f.type==='ads');
+  el.style.display='block';
+  el.innerHTML=`
+    <div style="margin-top:6px;">
+      ${!hasCampaigns?'<div style="font-size:11px;color:var(--yellow);margin-bottom:4px;">⚠️ Falta el reporte de campañas para filtrar correctamente</div>':''}
+      ${files.map(f=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(42,48,80,.3);">
+          <span style="font-size:14px;">${f.type==='campaigns'?'📊':'📈'}</span>
+          <div style="flex:1;">
+            <div style="font-size:11px;font-weight:500;color:var(--text);">${f.type==='campaigns'?'Reporte de campañas':'Reporte de anuncios'} <span class="tag ${f.type==='campaigns'?'tg':'tb'}" style="font-size:9px;">${f.info}</span></div>
+            <div style="font-size:10px;color:var(--text3);">${f.name.substring(0,45)}${f.name.length>45?'...':''}</div>
+            <div style="font-size:10px;color:var(--text3);">Cargado: ${f.date}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
 }
 
 function renderAdsForAccount(acc){
@@ -827,8 +948,13 @@ function renderAdsForAccount(acc){
   ads.forEach(ad=>{const c=ad.campaign||'Sin campaña';if(!campMap[c])campMap[c]=[];campMap[c].push(ad);});
 
   const listEl=$('camps-list-'+acc);
-  // Filter: only campaigns with at least 1 active ad
-  const activeCamps=Object.entries(campMap).filter(([,campAds])=>campAds.some(a=>a.status==='Activo'));
+  // Filter: only show active campaigns
+  // Use campData if available (from campaigns report), otherwise use ad-level status
+  const activeCamps=Object.entries(campMap).filter(([campName,campAds])=>{
+    const campInfo=S.campData[acc]?.[campName];
+    if(campInfo) return campInfo.isActive; // trust campaigns report
+    return campAds.some(a=>a.status==='Activo'); // fallback to ad-level
+  });
   
   if(!activeCamps.length){
     listEl.innerHTML='<div class="es"><p>Sin campañas activas en el período</p></div>';
@@ -842,18 +968,42 @@ function renderAdsForAccount(acc){
     const cActive=campAds.filter(a=>a.status==='Activo').length;
     const roasC=cRoas>=15?'tg':cRoas>=8?'ty':'tr';
     const id=`camp_${acc}_${campName.replace(/[^a-z0-9]/gi,'_')}`;
+    const roasKey=`${acc}_${campName}`;
+    const campInfo=S.campData[acc]?.[campName];
+    // Use campData budget if available, otherwise estimate from spend
+    const realBudget=campInfo?.budget||null;
+    const roasObj=S.roasTargets[roasKey]||campInfo?.roasObj||null;
+    const roasObjNum=parseFloat(roasObj)||null;
+    // Analysis badge
+    let analysisBadge='';
+    if(roasObjNum){
+      if(cRoas>=roasObjNum*0.9) analysisBadge=`<span class="tag tg" style="font-size:10px;">✓ En objetivo</span>`;
+      else if(cRoas>=roasObjNum*0.6) analysisBadge=`<span class="tag ty" style="font-size:10px;">⚠ Bajo objetivo</span>`;
+      else analysisBadge=`<span class="tag tr" style="font-size:10px;">✗ Muy bajo</span>`;
+    }
     return `<div class="camp-card">
       <div class="camp-header" onclick="toggleCamp('${id}')">
         <div class="camp-name">${campName}</div>
         <div class="camp-metrics-mini">
           <span style="font-size:11px;color:var(--text2);">${cActive} activos</span>
-          <span class="tag ${roasC}">ROAS ${cRoas.toFixed(1)}x</span>
+          <span class="tag ${roasC}">ROAS real ${cRoas.toFixed(1)}x</span>
+          ${roasObjNum?`<span style="font-size:11px;color:var(--text2);">Obj: ${roasObjNum}x</span>`:''}
+          ${analysisBadge}
           <span style="font-size:11px;color:var(--text2);">$${Math.round(cSpend).toLocaleString('es-AR')} inv.</span>
-          <span style="font-size:11px;color:var(--text2);">$${Math.round(cRev).toLocaleString('es-AR')} ing.</span>
           <span style="font-size:12px;color:var(--text3);">▼</span>
         </div>
       </div>
       <div class="camp-body" id="${id}">
+        <!-- ROAS objetivo editable -->
+        <div style="padding:10px 14px;background:rgba(59,130,246,.05);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:600;">ROAS objetivo en ML Ads:</span>
+          <input type="number" min="1" max="35" step="1" value="${roasObjNum||''}" placeholder="ej: 14"
+            style="width:70px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-size:13px;text-align:center;"
+            oninput="setRoasTarget('${acc}','${campName}',this.value)"
+            onclick="event.stopPropagation()">
+          <span style="font-size:11px;color:var(--text2);">ROAS real del período: <strong>${cRoas.toFixed(1)}x</strong></span>
+          ${roasObjNum?`<span style="font-size:11px;color:var(--text2);">→ ${getRoasRecommendationText(cRoas,roasObjNum,campName)}</span>`:'<span style="font-size:11px;color:var(--text3);">Ingresá el ROAS objetivo para ver recomendaciones precisas</span>'}
+        </div>
         <table style="width:100%;border-collapse:collapse;">
           <thead><tr>
             <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Artículo</th>
@@ -1032,49 +1182,86 @@ function buildDecisions(){
     }
 
     Object.values(campStats).forEach(camp=>{
+      // Skip paused campaigns — only generate decisions for active ones
+      const campInfo=S.campData[acc]?.[camp.name];
+      if(campInfo&&!campInfo.isActive) return;
+
       const campId=camp.name.replace(/[^a-z0-9]/gi,'_')+'_'+acc;
-      const currentRoas=camp.roas; // ROAS real del período
-      // ROAS objetivo actual: lo estimamos como el ROAS real + margen
-      // En ML Ads el ROAS objetivo es el que vos configuraste — acá lo estimamos
-      const estimatedTarget=camp.estimatedRoasTarget||Math.round(currentRoas*1.2)||10;
+      const currentRoas=camp.roas;
+      const roasKey=`${acc}_${camp.name}`;
+      // Use user-entered ROAS target if available, otherwise estimate
+      const userTarget=S.roasTargets[roasKey]||null;
+      const estimatedTarget=userTarget||camp.estimatedRoasTarget||Math.round(currentRoas*1.2)||10;
       const priceProxy=camp.spend>0&&camp.total_sales>0?(camp.revenue/camp.total_sales):0;
       const isHighPrice=priceProxy>=40000;
       const roasTarget=isHighPrice?20:15;
       const roasMin=isHighPrice?10:8;
-      const campBudgetDaily=Math.max(1,Math.round(camp.spend/30)); // presupuesto diario estimado
+      const campBudgetDaily=S.campData[acc]?.[camp.name]?.budget||Math.max(1,Math.round(camp.spend/30));
+      const today2=new Date();
+      function rd(days){const d=new Date(today2);d.setDate(d.getDate()+days);return d.toLocaleDateString('es-AR');}
 
-      // ── ROAS decisions (per campaign) ──
-      if(currentRoas>0&&currentRoas>=roasTarget&&(camp.ctr||0)>0.1){
-        const newTarget=Math.min(35,estimatedTarget+2);
-        allDecisions[acc].push({icon:'📈',type:'ok',category:'roas',action:'SUBIR ROAS OBJETIVO',
-          title:`Campaña: ${camp.name}`,
-          detail:`ROAS real del período: ${currentRoas.toFixed(1)}x (objetivo sugerido: ≥${roasTarget}x). En ML Ads → Campañas → "${camp.name}" → subí el ROAS objetivo a ${newTarget}x (+2). Esperá 7-10 días antes del próximo ajuste. Revisá el ${reviewDate(7)}.`,
-          priority:4,account:acc,campaign:camp.name,id:'roas_up_'+campId});
-      } else if(currentRoas>0&&currentRoas<roasMin&&camp.spend>0){
-        const newTarget=Math.max(1,estimatedTarget-2);
-        allDecisions[acc].push({icon:'📉',type:'warn',category:'roas',action:'BAJAR ROAS OBJETIVO',
-          title:`Campaña: ${camp.name}`,
-          detail:`ROAS real ${currentRoas.toFixed(1)}x — bajo el mínimo aceptable (${roasMin}x). En ML Ads → Campañas → "${camp.name}" → bajá el ROAS objetivo a ${newTarget}x (-2) para dar más margen al algoritmo. Inversión: $${Math.round(camp.spend).toLocaleString('es-AR')} → $${Math.round(camp.revenue).toLocaleString('es-AR')} en ventas. Revisá el ${reviewDate(7)}.`,
-          priority:2,account:acc,campaign:camp.name,id:'roas_dn_'+campId});
-      } else if(currentRoas>0&&currentRoas>=roasMin&&currentRoas<roasTarget){
-        allDecisions[acc].push({icon:'⏳',type:'info',category:'roas',action:'MONITOREAR',
-          title:`Campaña: ${camp.name}`,
-          detail:`ROAS real ${currentRoas.toFixed(1)}x — en zona intermedia (mín ${roasMin}x, objetivo ${roasTarget}x). No tocar el ROAS objetivo de la campaña por ahora. Esperá hasta el ${reviewDate(7)} para evaluar si mejoró.`,
-          priority:5,account:acc,campaign:camp.name,id:'roas_hold_'+campId});
+      // ── ROAS decisions — use real target if entered ──
+      if(userTarget){
+        // User told us the real target — give precise recommendation
+        const ratio=currentRoas/userTarget;
+        if(ratio>=0.9&&ratio<=1.3){
+          allDecisions[acc].push({icon:'✅',type:'ok',category:'roas',action:'EN OBJETIVO',
+            title:`Campaña: ${camp.name}`,
+            detail:`ROAS real ${currentRoas.toFixed(1)}x vs objetivo ${userTarget}x — en rango. No tocar. Revisá el ${rd(7)}.`,
+            priority:5,account:acc,campaign:camp.name,id:'roas_ok_'+campId});
+        } else if(ratio>1.3){
+          const newTarget=Math.min(35,Math.round(userTarget+2));
+          allDecisions[acc].push({icon:'📈',type:'ok',category:'roas',action:'SUBIR ROAS OBJETIVO',
+            title:`Campaña: ${camp.name}`,
+            detail:`ROAS real ${currentRoas.toFixed(1)}x supera el objetivo (${userTarget}x). En ML Ads → Campañas → "${camp.name}" → subí el ROAS objetivo de ${userTarget}x a ${newTarget}x (+2). Revisá el ${rd(7)}.`,
+            priority:4,account:acc,campaign:camp.name,id:'roas_up_'+campId});
+        } else if(ratio>=0.5){
+          const newTarget=Math.max(1,Math.round(userTarget-2));
+          allDecisions[acc].push({icon:'📉',type:'warn',category:'roas',action:'BAJAR ROAS OBJETIVO',
+            title:`Campaña: ${camp.name}`,
+            detail:`ROAS real ${currentRoas.toFixed(1)}x bajo el objetivo (${userTarget}x). En ML Ads → Campañas → "${camp.name}" → bajá el ROAS objetivo de ${userTarget}x a ${newTarget}x (-2). Inversión: $${Math.round(camp.spend).toLocaleString('es-AR')} → $${Math.round(camp.revenue).toLocaleString('es-AR')}. Revisá el ${rd(7)}.`,
+            priority:2,account:acc,campaign:camp.name,id:'roas_dn_'+campId});
+        } else {
+          const newTarget=Math.max(1,Math.round(userTarget-4));
+          allDecisions[acc].push({icon:'🚨',type:'danger',category:'roas',action:'BAJAR ROAS URGENTE',
+            title:`Campaña: ${camp.name}`,
+            detail:`ROAS real ${currentRoas.toFixed(1)}x muy por debajo del objetivo (${userTarget}x). En ML Ads → Campañas → "${camp.name}" → bajá el ROAS objetivo de ${userTarget}x a ${newTarget}x (-4) urgente. Inversión: $${Math.round(camp.spend).toLocaleString('es-AR')} → $${Math.round(camp.revenue).toLocaleString('es-AR')}. Revisá el ${rd(7)}.`,
+            priority:0,account:acc,campaign:camp.name,id:'roas_urg_'+campId});
+        }
+      } else {
+        // No user target — use estimated thresholds with note
+        if(currentRoas>0&&currentRoas>=roasTarget&&(camp.ctr||0)>0.1){
+          const newTarget=Math.min(35,estimatedTarget+2);
+          allDecisions[acc].push({icon:'📈',type:'ok',category:'roas',action:'SUBIR ROAS OBJETIVO',
+            title:`Campaña: ${camp.name}`,
+            detail:`ROAS real ${currentRoas.toFixed(1)}x — buen rendimiento. ⚠️ Ingresá el ROAS objetivo actual en Campañas para una recomendación precisa. Estimado: subir a ${newTarget}x. Revisá el ${rd(7)}.`,
+            priority:4,account:acc,campaign:camp.name,id:'roas_up_'+campId});
+        } else if(currentRoas>0&&currentRoas<roasMin&&camp.spend>0){
+          const newTarget=Math.max(1,estimatedTarget-2);
+          allDecisions[acc].push({icon:'📉',type:'warn',category:'roas',action:'BAJAR ROAS OBJETIVO',
+            title:`Campaña: ${camp.name}`,
+            detail:`ROAS real ${currentRoas.toFixed(1)}x — bajo el mínimo (${roasMin}x). ⚠️ Ingresá el ROAS objetivo actual en Campañas para saber exactamente cuánto bajar. Inversión: $${Math.round(camp.spend).toLocaleString('es-AR')} → $${Math.round(camp.revenue).toLocaleString('es-AR')}. Revisá el ${rd(7)}.`,
+            priority:2,account:acc,campaign:camp.name,id:'roas_dn_'+campId});
+        } else if(currentRoas>0){
+          allDecisions[acc].push({icon:'⏳',type:'info',category:'roas',action:'INGRESÁ ROAS OBJETIVO',
+            title:`Campaña: ${camp.name}`,
+            detail:`ROAS real ${currentRoas.toFixed(1)}x. Para recibir recomendaciones precisas, ingresá el ROAS objetivo actual de esta campaña en la sección Campañas.`,
+            priority:5,account:acc,campaign:camp.name,id:'roas_hold_'+campId});
+        }
       }
 
       // ── BUDGET decisions (per campaign) ──
-      if(currentRoas>=roasTarget&&camp.impressions>0){
+      if(currentRoas>=(userTarget||roasTarget)&&camp.impressions>0){
         const suggestedBudget=Math.round(campBudgetDaily*1.3/100)*100||campBudgetDaily+1000;
         allDecisions[acc].push({icon:'💰',type:'ok',category:'budget',action:'SUBIR PRESUPUESTO',
           title:`Campaña: ${camp.name}`,
-          detail:`ROAS ${currentRoas.toFixed(1)}x — la campaña está performando bien. ${isShared?'⚠️ Presupuesto compartido: el ajuste afecta todas las campañas de '+acc+'.':'En ML Ads → Campañas → "'+camp.name+'" →'} subí el presupuesto diario de ~$${campBudgetDaily.toLocaleString('es-AR')} a ~$${suggestedBudget.toLocaleString('es-AR')} (+30%). Revisá el ${reviewDate(7)}.`,
+          detail:`ROAS ${currentRoas.toFixed(1)}x — campaña performando bien. ${isShared?'⚠️ Presupuesto compartido: el ajuste afecta todas las campañas de '+acc+'.':'En ML Ads → Campañas → "'+camp.name+'" →'} subí el presupuesto diario de ~$${campBudgetDaily.toLocaleString('es-AR')} a ~$${suggestedBudget.toLocaleString('es-AR')} (+30%). Revisá el ${rd(7)}.`,
           priority:3,account:acc,campaign:camp.name,id:'budget_up_'+campId});
       } else if(currentRoas>0&&currentRoas<roasMin&&camp.spend>0){
         const suggestedBudget=Math.max(100,Math.round(campBudgetDaily*0.7/100)*100||campBudgetDaily-1000);
         allDecisions[acc].push({icon:'📊',type:'warn',category:'budget',action:'BAJAR PRESUPUESTO',
           title:`Campaña: ${camp.name}`,
-          detail:`ROAS bajo (${currentRoas.toFixed(1)}x). ${isShared?'⚠️ Presupuesto compartido: el ajuste afecta todas las campañas de '+acc+'.':'En ML Ads → Campañas → "'+camp.name+'" →'} bajá el presupuesto diario de ~$${campBudgetDaily.toLocaleString('es-AR')} a ~$${suggestedBudget.toLocaleString('es-AR')} (-30%) hasta que mejore el ROAS. Revisá el ${reviewDate(7)}.`,
+          detail:`ROAS bajo (${currentRoas.toFixed(1)}x). ${isShared?'⚠️ Presupuesto compartido: el ajuste afecta todas las campañas de '+acc+'.':'En ML Ads → Campañas → "'+camp.name+'" →'} bajá el presupuesto diario de ~$${campBudgetDaily.toLocaleString('es-AR')} a ~$${suggestedBudget.toLocaleString('es-AR')} (-30%) hasta que mejore el ROAS. Revisá el ${rd(7)}.`,
           priority:2,account:acc,campaign:camp.name,id:'budget_dn_'+campId});
       }
 
