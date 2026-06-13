@@ -769,13 +769,37 @@ function parseMLReport(text,filename,format,acc){
   }
   if(!ads.length){toast('No se encontraron datos en '+filename,'error');return;}
   S.ads[acc]=[...S.ads[acc].filter(a=>a.source!==filename),...ads];
+  // Save to Supabase
+  saveAdsData(acc);
   renderAdsForAccount(acc);
   buildDecisions();
   toast(`✅ ${ads.length} anuncios de ${acc} desde ${filename}`,'success');
 }
 
+async function saveAdsData(acc){
+  try{
+    await fetch(`${API}/api/ads_data`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({account:acc,ads:S.ads[acc]})});
+  }catch(e){console.log('Error saving ads:',e);}
+}
+
+async function loadAdsData(acc){
+  try{
+    const r=await fetch(`${API}/api/ads_data?account=${acc}`);
+    const d=await r.json();
+    if(d.ads&&d.ads.length){
+      S.ads[acc]=d.ads;
+      renderAdsForAccount(acc);
+      toast(`📂 Campañas de ${acc} restauradas (${d.ads.length} anuncios)`,'info');
+    }
+  }catch(e){console.log('Error loading ads:',e);}
+}
+
 function clearAds(acc){
-  S.ads[acc]=[];renderAdsForAccount(acc);buildDecisions();
+  S.ads[acc]=[];
+  saveAdsData(acc);
+  renderAdsForAccount(acc);
+  buildDecisions();
 }
 
 function renderAdsForAccount(acc){
@@ -1197,14 +1221,32 @@ function toggleCheck(acc,id){
   if(!checklist[acc])checklist[acc]={};
   checklist[acc][id]=!checklist[acc][id];
   if(!checklist[acc][id])delete checklist[acc][id];
+  // Save to Supabase
+  fetch(`${API}/api/checklist`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({account:acc,id,checked:!!checklist[acc][id]})}).catch(()=>{});
+  // Fallback to localStorage
   localStorage.setItem(`maraio_checklist_${acc==='maraio'?'m':'m2'}`,JSON.stringify(checklist[acc]));
   renderDecTabForAcc(acc);
 }
 
 function clearChecklist(acc){
   checklist[acc]={};
+  // Clear in Supabase
+  fetch(`${API}/api/checklist`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({account:acc,id:'__clear_all__',checked:false})}).catch(()=>{});
   localStorage.setItem(`maraio_checklist_${acc==='maraio'?'m':'m2'}`,JSON.stringify({}));
   renderDecTabForAcc(acc);
+}
+
+async function loadChecklist(acc){
+  try{
+    const r=await fetch(`${API}/api/checklist?account=${acc}`);
+    const d=await r.json();
+    if(d.checklist)checklist[acc]=d.checklist;
+  }catch(e){
+    // Fallback to localStorage
+    checklist[acc]=JSON.parse(localStorage.getItem(`maraio_checklist_${acc==='maraio'?'m':'m2'}`)||'{}');
+  }
 }
 
 function renderChecklist(acc){
@@ -1400,7 +1442,7 @@ function buildAlerts(){
 function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0]+'T00:00:00.000-03:00';}
 
 // ── INIT ──────────────────────────────────────────────────────
-checkStatus().then(()=>{
+checkStatus().then(async ()=>{
   const any=S.accounts.maraio.connected||S.accounts.maraio2.connected;
   nav(any?'overview':'connect');
   selAcc(S.accounts.maraio.connected?'maraio':'maraio2');
@@ -1409,6 +1451,14 @@ checkStatus().then(()=>{
   showDecTab('maraio2','roas');
   setDecAcc('maraio');
   setAdsAcc('maraio');
+  // Load saved data from Supabase
+  await Promise.all([
+    loadAdsData('maraio'),
+    loadAdsData('maraio2'),
+    loadChecklist('maraio'),
+    loadChecklist('maraio2')
+  ]);
+  buildDecisions();
 });
 </script>
 </body>
