@@ -430,6 +430,7 @@ let S={
   accounts:{maraio:{connected:false,userId:null},maraio2:{connected:false,userId:null}},
   ovAcc:'maraio',salesAcc:'maraio',adsAcc:'maraio',decAcc:'maraio',pendingAuth:null,
   ads:{maraio:[],maraio2:[]},
+  campData:{maraio:{},maraio2:{}}, // campaign-level data from campaigns report
   roasTargets:JSON.parse(localStorage.getItem('maraio_roas_targets')||'{}'),
   chatAddItems:{maraio:[],maraio2:[]},
   skuOverrides:{},chatHistory:[]
@@ -746,24 +747,83 @@ function readXLSXWithLib(file,acc){
   reader.onload=function(e){
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
-      const dataSheet=wb.SheetNames.find(n=>n.toLowerCase().includes('anuncio')||n.toLowerCase().includes('reporte por'))||wb.SheetNames[wb.SheetNames.length-1];
+      // Detect if this is a campaigns report or ads report
+      const isCampaignsReport=wb.SheetNames.some(n=>n.toLowerCase().includes('campaña'));
+      const dataSheet=wb.SheetNames.find(n=>
+        n.toLowerCase().includes('campaña')||
+        n.toLowerCase().includes('anuncio')||
+        n.toLowerCase().includes('reporte por')
+      )||wb.SheetNames[wb.SheetNames.length-1];
       const ws=wb.Sheets[dataSheet];const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       let headerRow=-1;
       for(let i=0;i<Math.min(raw.length,10);i++){
         const rowStr=raw[i].map(c=>String(c||'').toLowerCase().replace(/\n/g,' ')).join('|');
-        if(rowStr.includes('campaña')||rowStr.includes('desde')||rowStr.includes('estado')){headerRow=i;break;}
+        if(rowStr.includes('campaña')||rowStr.includes('desde')||rowStr.includes('estado')||rowStr.includes('nombre de campaña')){headerRow=i;break;}
       }
       if(headerRow===-1){toast('No se encontró el encabezado en '+file.name,'error');return;}
       const headers=raw[headerRow].map(h=>String(h||'').replace(/\n/g,' ').replace(/\s+/g,' ').trim().toLowerCase());
       const dataRows=raw.slice(headerRow+1).filter(r=>r.some(c=>c!==''));
       const text=[headers.join('\t'),...dataRows.map(r=>r.map(c=>c===null||c===undefined?'':String(c)).join('\t'))].join('\n');
-      parseMLReport(text,file.name,'tsv',acc);
+
+      // Check if this is campaigns report (has "nombre de campaña" or "roas objetivo" or "presupuesto")
+      const isCampReport=headers.some(h=>h.includes('nombre de campaña')||h.includes('roas objetivo')||h.includes('presupuesto'));
+      if(isCampReport){
+        parseCampaignsReport(text,file.name,acc);
+      } else {
+        parseMLReport(text,file.name,'tsv',acc);
+      }
     }catch(err){toast('Error leyendo '+file.name+': '+err.message,'error');}
   };
   reader.readAsArrayBuffer(file);
 }
 
 const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
+
+function parseCampaignsReport(text,filename,acc){
+  const lines=text.split('\n').filter(l=>l.trim());
+  if(lines.length<2){toast('Reporte de campañas vacío: '+filename,'error');return;}
+  const headers=lines[0].split('\t').map(h=>h.trim().toLowerCase());
+  const nameIdx=headers.findIndex(h=>h.includes('nombre'));
+  const statusIdx=headers.findIndex(h=>h.includes('estado'));
+  const budgetIdx=headers.findIndex(h=>h.includes('presupuesto'));
+  const roasObjIdx=headers.findIndex(h=>h.includes('roas objetivo')||h.includes('roas_objetivo'));
+  const impressionsIdx=headers.findIndex(h=>h.includes('impresiones'));
+  const impWonIdx=headers.findIndex(h=>h.includes('ganadas'));
+
+  S.campData[acc]={};
+  for(const line of lines.slice(1)){
+    const vals=line.split('\t').map(v=>v.trim());
+    if(!vals[nameIdx]) continue;
+    const name=vals[nameIdx];
+    const status=vals[statusIdx]||'';
+    const budget=parseFloat(vals[budgetIdx])||0;
+    const roasObj=vals[roasObjIdx]&&vals[roasObjIdx]!=='-'?parseFloat(vals[roasObjIdx])||null:null;
+    const impressions=parseFloat(vals[impressionsIdx])||0;
+    const impWon=parseFloat(vals[impWonIdx])||0;
+    S.campData[acc][name]={
+      name,
+      status:status.trim(), // 'Activa' or 'Pausada'
+      isActive:status.toLowerCase().includes('activa')||status.toLowerCase().includes('activo'),
+      budget,
+      roasObj,
+      impressions,
+      impWon
+    };
+    // Auto-set ROAS target if it comes from ML and user hasn't set it manually
+    if(roasObj){
+      const key=`${acc}_${name}`;
+      if(!S.roasTargets[key]){
+        S.roasTargets[key]=roasObj;
+        localStorage.setItem('maraio_roas_targets',JSON.stringify(S.roasTargets));
+      }
+    }
+  }
+  const count=Object.keys(S.campData[acc]).length;
+  const active=Object.values(S.campData[acc]).filter(c=>c.isActive).length;
+  toast(`✅ Reporte de campañas de ${acc}: ${active} activas de ${count} total`,'success');
+  renderAdsForAccount(acc);
+  buildDecisions();
+}
 
 function parseMLReport(text,filename,format,acc){
   const delim=format==='tsv'?'\t':(text.split('\n')[0].split('\t').length>3?'\t':text.split('\n')[0].split(';').length>text.split('\n')[0].split(',').length?';':',');
@@ -856,8 +916,13 @@ function renderAdsForAccount(acc){
   ads.forEach(ad=>{const c=ad.campaign||'Sin campaña';if(!campMap[c])campMap[c]=[];campMap[c].push(ad);});
 
   const listEl=$('camps-list-'+acc);
-  // Filter: only campaigns with at least 1 active ad
-  const activeCamps=Object.entries(campMap).filter(([,campAds])=>campAds.some(a=>a.status==='Activo'));
+  // Filter: only show active campaigns
+  // Use campData if available (from campaigns report), otherwise use ad-level status
+  const activeCamps=Object.entries(campMap).filter(([campName,campAds])=>{
+    const campInfo=S.campData[acc]?.[campName];
+    if(campInfo) return campInfo.isActive; // trust campaigns report
+    return campAds.some(a=>a.status==='Activo'); // fallback to ad-level
+  });
   
   if(!activeCamps.length){
     listEl.innerHTML='<div class="es"><p>Sin campañas activas en el período</p></div>';
@@ -872,7 +937,10 @@ function renderAdsForAccount(acc){
     const roasC=cRoas>=15?'tg':cRoas>=8?'ty':'tr';
     const id=`camp_${acc}_${campName.replace(/[^a-z0-9]/gi,'_')}`;
     const roasKey=`${acc}_${campName}`;
-    const roasObj=S.roasTargets[roasKey]||'';
+    const campInfo=S.campData[acc]?.[campName];
+    // Use campData budget if available, otherwise estimate from spend
+    const realBudget=campInfo?.budget||null;
+    const roasObj=S.roasTargets[roasKey]||campInfo?.roasObj||null;
     const roasObjNum=parseFloat(roasObj)||null;
     // Analysis badge
     let analysisBadge='';
@@ -897,7 +965,7 @@ function renderAdsForAccount(acc){
         <!-- ROAS objetivo editable -->
         <div style="padding:10px 14px;background:rgba(59,130,246,.05);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:12px;font-weight:600;">ROAS objetivo en ML Ads:</span>
-          <input type="number" min="1" max="35" step="1" value="${roasObj}" placeholder="ej: 14"
+          <input type="number" min="1" max="35" step="1" value="${roasObjNum||''}" placeholder="ej: 14"
             style="width:70px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text);font-size:13px;text-align:center;"
             oninput="setRoasTarget('${acc}','${campName}',this.value)"
             onclick="event.stopPropagation()">
@@ -1082,6 +1150,10 @@ function buildDecisions(){
     }
 
     Object.values(campStats).forEach(camp=>{
+      // Skip paused campaigns — only generate decisions for active ones
+      const campInfo=S.campData[acc]?.[camp.name];
+      if(campInfo&&!campInfo.isActive) return;
+
       const campId=camp.name.replace(/[^a-z0-9]/gi,'_')+'_'+acc;
       const currentRoas=camp.roas;
       const roasKey=`${acc}_${camp.name}`;
@@ -1092,7 +1164,7 @@ function buildDecisions(){
       const isHighPrice=priceProxy>=40000;
       const roasTarget=isHighPrice?20:15;
       const roasMin=isHighPrice?10:8;
-      const campBudgetDaily=Math.max(1,Math.round(camp.spend/30));
+      const campBudgetDaily=S.campData[acc]?.[camp.name]?.budget||Math.max(1,Math.round(camp.spend/30));
       const today2=new Date();
       function rd(days){const d=new Date(today2);d.setDate(d.getDate()+days);return d.toLocaleDateString('es-AR');}
 
