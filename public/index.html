@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maraio — Centro de Control ML</title>
+<style>
+:root{--bg:#0f1117;--surface:#181c27;--surface2:#1e2335;--border:#2a3050;--accent:#3b82f6;--accent2:#6366f1;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--text:#e8eaf0;--text2:#8b92a8;--text3:#545c75;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:14px;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{font-weight:700;font-size:15px;letter-spacing:-.5px;}.logo span{color:var(--accent);}
+.atabs{display:flex;gap:4px;margin-left:14px;}
+.atab{padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px;}
+.atab .dot{width:6px;height:6px;border-radius:50%;background:var(--text3);}
+.atab.am{background:rgba(59,130,246,.15);border-color:#3b82f6;color:#3b82f6;}.atab.am .dot{background:#3b82f6;}
+.atab.am2{background:rgba(99,102,241,.15);border-color:#6366f1;color:#6366f1;}.atab.am2 .dot{background:#6366f1;}
+.badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500;}
+.badge.ok{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);}
+.badge.no{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2);}
+.btn{padding:6px 12px;border-radius:5px;border:none;cursor:pointer;font-size:12px;font-weight:500;transition:all .15s;}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#2563eb;}
+.btn-s{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}.btn-s:hover{color:var(--text);}
+.btn-sm{padding:4px 9px;font-size:11px;}
+.btn-ind{background:rgba(99,102,241,.15);color:#6366f1;border:1px solid rgba(99,102,241,.3);}
+.layout{display:flex;height:calc(100vh - 52px);}
+.sidebar{width:190px;background:var(--surface);border-right:1px solid var(--border);padding:12px 0;flex-shrink:0;overflow-y:auto;}
+.nav-sec{padding:12px 16px 4px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;}
+.nav-item{padding:8px 16px;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:8px;font-size:12px;transition:all .1s;border-left:2px solid transparent;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(59,130,246,.08);}
+.nav-icon{font-size:14px;width:16px;text-align:center;}
+.main{flex:1;overflow-y:auto;padding:20px;}
+.screen{display:none;}.screen.active{display:block;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:14px;}
+.ph{margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.ph h1{font-size:18px;font-weight:600;}.ph p{color:var(--text2);font-size:12px;margin-top:2px;}
+.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;}
+.mlb{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.mv{font-size:24px;font-weight:700;letter-spacing:-.5px;}
+.ms{font-size:11px;color:var(--text2);margin-top:3px;}
+.up{color:var(--green);}.dn{color:var(--red);}.nt{color:var(--yellow);}
+.tw{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px;}
+.th{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.th h3{font-size:13px;font-weight:600;}
+table{width:100%;border-collapse:collapse;}
+th{padding:9px 12px;text-align:left;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);font-weight:500;white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid rgba(42,48,80,.4);font-size:12px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.015);}
+.tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:500;}
+.tg{background:rgba(34,197,94,.15);color:var(--green);}
+.tr{background:rgba(239,68,68,.1);color:var(--red);}
+.ty{background:rgba(245,158,11,.15);color:var(--yellow);}
+.tb{background:rgba(59,130,246,.15);color:#3b82f6;}
+.ti{background:rgba(99,102,241,.15);color:#6366f1;}
+.uz{border:2px dashed var(--border);border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;}
+.uz:hover,.uz.drag{border-color:var(--accent);background:rgba(59,130,246,.04);}
+.es{text-align:center;padding:40px 20px;color:var(--text2);}
+.es .ei{font-size:32px;margin-bottom:8px;}
+.es h3{font-size:14px;color:var(--text);margin-bottom:4px;}
+.es p{font-size:12px;max-width:280px;margin:0 auto;}
+.loading{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:12px;padding:16px;justify-content:center;}
+.sp{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.tc{position:fixed;bottom:16px;right:16px;z-index:300;display:flex;flex-direction:column;gap:6px;}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-size:12px;max-width:300px;animation:sIn .2s ease;}
+.toast.success{border-left:3px solid var(--green);}.toast.error{border-left:3px solid var(--red);}.toast.info{border-left:3px solid var(--accent);}
+@keyframes sIn{from{transform:translateX(16px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+/* Account tabs for inner screens */
+.acctabs{display:flex;gap:1px;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;}
+.acctab{flex:1;padding:7px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);background:transparent;transition:all .15s;text-align:center;}
+.acctab.active-m{background:rgba(59,130,246,.2);color:#3b82f6;}
+.acctab.active-m2{background:rgba(99,102,241,.2);color:#6366f1;}
+/* Campaign cards */
+.camp-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.camp-header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:10px;}
+.camp-header:hover{background:rgba(255,255,255,.02);}
+.camp-name{font-weight:600;font-size:13px;flex:1;}
+.camp-metrics-mini{display:flex;gap:12px;align-items:center;}
+.camp-body{display:none;padding:0 0 12px;border-top:1px solid var(--border);}
+.camp-body.open{display:block;}
+/* Decision cards */
+.dec-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;}
+.dec-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.dec-body{flex:1;}
+.dec-title{font-weight:600;font-size:13px;margin-bottom:3px;}
+.dec-detail{font-size:11px;color:var(--text2);line-height:1.5;}
+.dec-action{flex-shrink:0;}
+.check-box{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.check-box.done{background:var(--green);border-color:var(--green);color:#fff;}
+/* Pricing */
+.ig{margin-bottom:12px;}
+.ig label{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;}
+.ig input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px 10px;color:var(--text);font-size:13px;}
+.ig input:focus{outline:none;border-color:var(--accent);}
+/* Connect */
+.acr{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface2);border-radius:7px;border:1px solid var(--border);margin-bottom:8px;}
+.acn{font-weight:600;display:flex;align-items:center;gap:7px;font-size:13px;}
+.pill{font-size:10px;padding:2px 6px;border-radius:3px;font-weight:500;}
+.pp{background:rgba(59,130,246,.2);color:#3b82f6;}.ps{background:rgba(99,102,241,.2);color:#6366f1;}
+.ci2{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:9px 10px;color:var(--text);font-family:monospace;font-size:11px;resize:none;}
+.ci2:focus{outline:none;border-color:var(--accent);}
+/* SKU */
+.conflict{background:rgba(239,68,68,.05)!important;}
+.sku-badge{font-size:10px;font-family:monospace;background:var(--surface2);padding:2px 6px;border-radius:3px;border:1px solid var(--border);}
+/* Filters */
+.fb{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.si{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-size:12px;width:200px;}
+.si:focus{outline:none;border-color:var(--accent);}
+select.fs{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:6px 9px;color:var(--text2);font-size:11px;cursor:pointer;}
+/* Acc selector */
+.acc-sel{display:flex;gap:6px;margin-bottom:12px;align-items:center;}
+.acc-sel span{color:var(--text2);font-size:11px;}
+.ab{padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px;}
+.ab.sam{background:rgba(59,130,246,.15);border-color:#3b82f6;color:#3b82f6;}
+.ab.sam2{background:rgba(99,102,241,.15);border-color:#6366f1;color:#6366f1;}
+.ab.sboth{background:rgba(255,255,255,.05);border-color:var(--text3);color:var(--text);}
+/* Chat */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);max-height:680px;}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px 8px 0 0;}
+.msg{max-width:80%;padding:9px 13px;border-radius:7px;font-size:13px;line-height:1.5;}
+.msg.user{background:var(--accent);color:#fff;align-self:flex-end;border-radius:7px 7px 0 7px;}
+.msg.ai{background:var(--surface2);color:var(--text);align-self:flex-start;border-radius:7px 7px 7px 0;border:1px solid var(--border);}
+.chat-input-row{display:flex;gap:8px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:10px;}
+.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:13px;resize:none;font-family:inherit;}
+.chat-input:focus{outline:none;border-color:var(--accent);}
+/* Chart */
+.ca{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px;}
+.ca h3{font-size:13px;font-weight:600;margin-bottom:12px;}
+.cp{height:130px;display:flex;align-items:flex-end;gap:5px;padding-bottom:6px;}
+.bw{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.bar{width:100%;border-radius:3px 3px 0 0;cursor:pointer;}
+.bar:hover{opacity:.8;}
+.bl{font-size:9px;color:var(--text3);}
+@media(max-width:900px){.mg{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;">
+    <div class="logo">maraio<span>.</span>control</div>
+    <div class="atabs">
+      <button class="atab" id="tab-maraio" onclick="selAcc('maraio')"><span class="dot"></span>maraio</button>
+      <button class="atab" id="tab-maraio2" onclick="selAcc('maraio2')"><span class="dot"></span>maraio2</button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="badge no" id="conn-status">Sin conectar</span>
+    <button class="btn btn-s btn-sm" onclick="nav('connect')">Cuentas</button>
+  </div>
+</div>
+
+<div class="layout">
+<div class="sidebar">
+  <div class="nav-sec">Principal</div>
+  <div class="nav-item active" onclick="nav('overview')" id="nv-overview"><span class="nav-icon">📊</span>Resumen</div>
+  <div class="nav-item" onclick="nav('sku')" id="nv-sku"><span class="nav-icon">🔗</span>Vista por SKU</div>
+  <div class="nav-item" onclick="nav('listings')" id="nv-listings"><span class="nav-icon">📦</span>Publicaciones</div>
+  <div class="nav-item" onclick="nav('sales')" id="nv-sales"><span class="nav-icon">💰</span>Ventas</div>
+  <div class="nav-sec">Publicidad</div>
+  <div class="nav-item" onclick="nav('ads')" id="nv-ads"><span class="nav-icon">📈</span>Campañas</div>
+  <div class="nav-item" onclick="nav('decisions')" id="nv-decisions"><span class="nav-icon">🎯</span>Recomendaciones</div>
+  <div class="nav-sec">Herramientas</div>
+  <div class="nav-item" onclick="nav('chat')" id="nv-chat"><span class="nav-icon">💬</span>Asistente IA</div>
+  <div class="nav-item" onclick="nav('pricing')" id="nv-pricing"><span class="nav-icon">🧮</span>Calculadora</div>
+  <div class="nav-item" onclick="nav('alerts')" id="nv-alerts"><span class="nav-icon">🔔</span>Alertas</div>
+  <div class="nav-item" onclick="nav('connect')" id="nv-connect"><span class="nav-icon">🔑</span>Conexión</div>
+</div>
+
+<div class="main">
+
+<!-- ═══ CONNECT ═══ -->
+<div class="screen active" id="sc-connect">
+<div style="max-width:520px;margin:30px auto;">
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:600;margin-bottom:6px;">Conectar cuentas de Mercado Libre</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">Autorizá cada cuenta por separado.</p>
+    <div class="acr">
+      <div class="acn"><span class="pill pp">Principal</span>maraio</div>
+      <div style="display:flex;gap:7px;align-items:center;"><span class="badge no" id="st-maraio">Desconectado</span><button class="btn btn-p btn-sm" onclick="startAuth('maraio')">Conectar</button></div>
+    </div>
+    <div class="acr">
+      <div class="acn"><span class="pill ps">Secundaria</span>maraio2</div>
+      <div style="display:flex;gap:7px;align-items:center;"><span class="badge no" id="st-maraio2">Desconectado</span><button class="btn btn-p btn-sm" onclick="startAuth('maraio2')">Conectar</button></div>
+    </div>
+  </div>
+  <div class="card" id="auth-step" style="display:none;">
+    <h2 id="auth-title" style="font-size:15px;font-weight:600;margin-bottom:6px;">Paso 2</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Copiá la URL completa de la barra del navegador y pegala acá.</p>
+    <textarea class="ci2" id="redir-input" rows="3" placeholder="https://maraio.com.ar/callback?code=TG-..."></textarea>
+    <div style="display:flex;gap:7px;margin-top:10px;">
+      <button class="btn btn-p" onclick="processAuth()">Obtener token</button>
+      <button class="btn btn-s" onclick="cancelAuth()">Cancelar</button>
+    </div>
+    <div id="auth-loading" style="display:none;" class="loading"><div class="sp"></div>Conectando...</div>
+    <div id="auth-err" style="display:none;color:var(--red);font-size:12px;margin-top:8px;padding:8px;background:rgba(239,68,68,.05);border-radius:5px;"></div>
+  </div>
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:12px;">
+    <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Servidor activo</div>
+    <p style="font-size:11px;color:var(--text2);">App ID: 8285062642673402 · Tokens: guardados en disco</p>
+  </div>
+</div>
+</div>
+
+<!-- ═══ OVERVIEW ═══ -->
+<div class="screen" id="sc-overview">
+  <div class="ph"><div><h1>Resumen general</h1><p id="ov-sub">Cargando...</p></div><button class="btn btn-s btn-sm" onclick="loadOverview()">↻ Actualizar</button></div>
+  <div class="acc-sel"><span>Cuenta:</span>
+    <button class="ab sam" id="ab-maraio" onclick="setOvAcc('maraio')">maraio</button>
+    <button class="ab" id="ab-maraio2" onclick="setOvAcc('maraio2')">maraio2</button>
+    <button class="ab" id="ab-both" onclick="setOvAcc('both')">Ambas</button>
+  </div>
+  <div class="mg">
+    <div class="mc"><div class="mlb">Publicaciones activas</div><div class="mv" id="ov-active"><div class="sp"></div></div><div class="ms" id="ov-active-s">—</div></div>
+    <div class="mc"><div class="mlb">Ventas (30 días)</div><div class="mv" id="ov-sales"><div class="sp"></div></div><div class="ms" id="ov-sales-s">órdenes</div></div>
+    <div class="mc"><div class="mlb">Preguntas sin responder</div><div class="mv" id="ov-q"><div class="sp"></div></div><div class="ms" id="ov-q-s">—</div></div>
+    <div class="mc"><div class="mlb">Conflictos SKU</div><div class="mv dn" id="ov-conflicts">—</div><div class="ms">mismo SKU en ambas</div></div>
+  </div>
+  <div class="ca"><h3>Ventas últimos 7 días</h3><div class="cp" id="sales-chart"><div class="loading" style="width:100%;"><div class="sp"></div>Cargando...</div></div></div>
+  <div class="tw"><div class="th"><h3>Top publicaciones</h3></div><div id="top-body"><div class="loading"><div class="sp"></div>Cargando...</div></div></div>
+</div>
+
+<!-- ═══ SKU ═══ -->
+<div class="screen" id="sc-sku">
+  <div class="ph"><div><h1>Vista por SKU</h1><p>Artículos cruzados — conflictos detectados automáticamente</p></div><button class="btn btn-s btn-sm" onclick="loadSKU()">↻ Actualizar</button></div>
+  <div class="fb">
+    <input class="si" type="text" placeholder="Buscar SKU o título..." id="sku-search" oninput="filterSKU()">
+    <select class="fs" id="sku-filter" onchange="filterSKU()">
+      <option value="all">Todos</option><option value="conflict">Solo conflictos</option>
+      <option value="maraio">Solo maraio</option><option value="maraio2">Solo maraio2</option>
+    </select>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>SKU</th><th>Título</th><th>maraio</th><th>maraio2</th><th>Precio</th><th>Stock total</th><th>Estado</th></tr></thead>
+    <tbody id="sku-tbody"><tr><td colspan="7"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
+  </table></div>
+</div>
+
+<!-- ═══ LISTINGS ═══ -->
+<div class="screen" id="sc-listings">
+  <div class="ph"><div><h1>Publicaciones</h1><p>Stock, precios y estado</p></div><button class="btn btn-s btn-sm" onclick="loadListings()">↻ Actualizar</button></div>
+  <div class="fb">
+    <input class="si" type="text" placeholder="Buscar título o MLA..." id="ls-search" oninput="filterListings()">
+    <select class="fs" id="ls-acc" onchange="filterListings()"><option value="all">Ambas</option><option value="maraio">maraio</option><option value="maraio2">maraio2</option></select>
+    <select class="fs" id="ls-stock" onchange="filterListings()"><option value="all">Todo stock</option><option value="low">Bajo (≤5)</option><option value="out">Sin stock</option></select>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>MLA / Título</th><th>SKU</th><th>Cuenta</th><th>Precio</th><th>Stock</th><th>Estado</th></tr></thead>
+    <tbody id="ls-tbody"><tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
+  </table></div>
+</div>
+
+<!-- ═══ SALES ═══ -->
+<div class="screen" id="sc-sales">
+  <div class="ph"><div><h1>Ventas</h1><p>Últimas órdenes</p></div><button class="btn btn-s btn-sm" onclick="loadSales()">↻ Actualizar</button></div>
+  <div class="acc-sel"><span>Cuenta:</span>
+    <button class="ab sam" id="sb-maraio" onclick="setSalesAcc('maraio')">maraio</button>
+    <button class="ab" id="sb-maraio2" onclick="setSalesAcc('maraio2')">maraio2</button>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Orden</th><th>Fecha</th><th>Producto</th><th>SKU</th><th>Cant.</th><th>Total</th></tr></thead>
+    <tbody id="sales-tbody"><tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
+  </table></div>
+</div>
+
+<!-- ═══ ADS ═══ -->
+<div class="screen" id="sc-ads">
+  <div class="ph"><div><h1>Campañas publicitarias</h1><p>Analizá cada campaña por cuenta</p></div></div>
+  <!-- Account tabs -->
+  <div class="acctabs">
+    <button class="acctab active-m" id="adtab-maraio" onclick="setAdsAcc('maraio')">● maraio</button>
+    <button class="acctab" id="adtab-maraio2" onclick="setAdsAcc('maraio2')">● maraio2</button>
+  </div>
+  <!-- maraio panel -->
+  <div id="ads-panel-maraio">
+    <div class="card" style="padding:12px;margin-bottom:10px;">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:0;">📋 Exportá desde ML Ads → Product Ads → Reportes → Reporte de anuncios. Cargá el archivo de <strong>maraio</strong> acá.</p>
+    </div>
+    <div class="uz" id="uz-maraio" onclick="document.getElementById('ci-maraio').click()" ondragover="dragOver(event,'maraio')" ondragleave="dragLeave('maraio')" ondrop="dropFile(event,'maraio')">
+      <input type="file" id="ci-maraio" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio')">
+      <div style="font-size:24px;margin-bottom:6px;">📂</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio acá</div>
+      <div style="color:var(--text2);font-size:12px;">Acepta .xlsx y .csv</div>
+    </div>
+    <div id="ads-summary-maraio" style="display:none;">
+      <div class="mg" id="ads-metrics-maraio"></div>
+      <div id="camps-list-maraio"></div>
+      <button class="btn btn-s btn-sm" onclick="clearAds('maraio')" style="margin-top:4px;">Limpiar datos maraio</button>
+    </div>
+    <div id="ads-empty-maraio"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio</h3><p>Cargá el reporte de ML Ads</p></div></div>
+  </div>
+  <!-- maraio2 panel -->
+  <div id="ads-panel-maraio2" style="display:none;">
+    <div class="card" style="padding:12px;margin-bottom:10px;">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:0;">📋 Exportá desde ML Ads → Product Ads → Reportes → Reporte de anuncios. Cargá el archivo de <strong>maraio2</strong> acá.</p>
+    </div>
+    <div class="uz" id="uz-maraio2" onclick="document.getElementById('ci-maraio2').click()" ondragover="dragOver(event,'maraio2')" ondragleave="dragLeave('maraio2')" ondrop="dropFile(event,'maraio2')">
+      <input type="file" id="ci-maraio2" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio2')">
+      <div style="font-size:24px;margin-bottom:6px;">📂</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio2 acá</div>
+      <div style="color:var(--text2);font-size:12px;">Acepta .xlsx y .csv</div>
+    </div>
+    <div id="ads-summary-maraio2" style="display:none;">
+      <div class="mg" id="ads-metrics-maraio2"></div>
+      <div id="camps-list-maraio2"></div>
+      <button class="btn btn-s btn-sm" onclick="clearAds('maraio2')" style="margin-top:4px;">Limpiar datos maraio2</button>
+    </div>
+    <div id="ads-empty-maraio2"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio2</h3><p>Cargá el reporte de ML Ads</p></div></div>
+  </div>
+</div>
+
+<!-- ═══ DECISIONS ═══ -->
+<div class="screen" id="sc-decisions">
+  <div class="ph"><div><h1>Recomendaciones</h1><p>Análisis semanal por cuenta — sin conflictos de SKU</p></div><button class="btn btn-s btn-sm" onclick="buildDecisions()">↻ Recalcular</button></div>
+
+  <!-- Account switcher -->
+  <div class="acctabs">
+    <button class="acctab active-m" id="dectab-maraio" onclick="setDecAcc('maraio')">● maraio</button>
+    <button class="acctab" id="dectab-maraio2" onclick="setDecAcc('maraio2')">● maraio2</button>
+  </div>
+
+  <!-- maraio panel -->
+  <div id="dec-panel-maraio">
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn btn-p btn-sm" id="dtab-maraio-roas" onclick="showDecTab('maraio','roas')">📈 ROAS</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio-budget" onclick="showDecTab('maraio','budget')">💰 Presupuesto</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio-pause" onclick="showDecTab('maraio','pause')">⏸ Pausar</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio-add" onclick="showDecTab('maraio','add')">➕ Agregar</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio-calendar" onclick="showDecTab('maraio','calendar')">📅 Calendario</button>
+    </div>
+    <div id="dec-content-maraio"><div class="es"><div class="ei">🎯</div><h3>Sin datos de maraio</h3><p>Cargá el reporte de ML Ads de maraio en Campañas</p></div></div>
+    <div id="dec-checklist-maraio" style="display:none;margin-top:14px;">
+      <div class="tw">
+        <div class="th"><h3>✅ Checklist — maraio</h3><button class="btn btn-s btn-sm" onclick="clearChecklist('maraio')">Limpiar tildados</button></div>
+        <div id="checklist-body-maraio" style="padding:4px 0;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- maraio2 panel -->
+  <div id="dec-panel-maraio2" style="display:none;">
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn btn-p btn-sm" id="dtab-maraio2-roas" onclick="showDecTab('maraio2','roas')">📈 ROAS</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio2-budget" onclick="showDecTab('maraio2','budget')">💰 Presupuesto</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio2-pause" onclick="showDecTab('maraio2','pause')">⏸ Pausar</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio2-add" onclick="showDecTab('maraio2','add')">➕ Agregar</button>
+      <button class="btn btn-s btn-sm" id="dtab-maraio2-calendar" onclick="showDecTab('maraio2','calendar')">📅 Calendario</button>
+    </div>
+    <div id="dec-content-maraio2"><div class="es"><div class="ei">🎯</div><h3>Sin datos de maraio2</h3><p>Cargá el reporte de ML Ads de maraio2 en Campañas</p></div></div>
+    <div id="dec-checklist-maraio2" style="display:none;margin-top:14px;">
+      <div class="tw">
+        <div class="th"><h3>✅ Checklist — maraio2</h3><button class="btn btn-s btn-sm" onclick="clearChecklist('maraio2')">Limpiar tildados</button></div>
+        <div id="checklist-body-maraio2" style="padding:4px 0;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHAT ═══ -->
+<div class="screen" id="sc-chat">
+  <div class="ph"><div><h1>Asistente IA</h1><p>Consultá sobre campañas, márgenes o pegá links de ML para que aprenda</p></div></div>
+  <div class="card" style="padding:10px 14px;margin-bottom:10px;">
+    <p style="font-size:11px;margin-bottom:6px;color:var(--text2);">💡 "¿Qué campañas debo pausar?" · "Calculame el precio para costo $18.000" · "¿Hay conflictos de SKU?" · "¿Cuál es el ROAS objetivo ideal para Art caros?"</p>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" id="chat-url-input" placeholder="Pegá un link de ML para que aprenda (ej: vendedores.mercadolibre.com.ar/...)" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-size:11px;">
+      <button class="btn btn-s btn-sm" onclick="learnFromUrl()">📖 Aprender</button>
+    </div>
+    <div id="url-loading" style="display:none;font-size:11px;color:var(--text2);margin-top:6px;">Leyendo el link...</div>
+  </div>
+  <div class="chat-wrap">
+    <div class="chat-msgs" id="chat-msgs"><div class="msg ai">¡Hola! Soy tu asistente de gestión para Maraio. Podés preguntarme sobre campañas, márgenes, SKUs o pegar links de ML para que aprenda las últimas actualizaciones. ¿En qué te ayudo?</div></div>
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chat-input" rows="2" placeholder="Escribí tu consulta..." onkeydown="chatKey(event)"></textarea>
+      <button class="btn btn-p" onclick="sendChat()" id="chat-send">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PRICING ═══ -->
+<div class="screen" id="sc-pricing">
+  <div class="ph"><div><h1>Calculadora de precios</h1><p>ML Argentina · Ropa y accesorios · 13% comisión · IVA incluido</p></div></div>
+  <div style="max-width:820px;">
+    <div class="card" style="margin-bottom:14px;">
+      <h2 style="font-size:14px;font-weight:600;margin-bottom:14px;">Datos del producto</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="ig"><label>Costo del producto (ARS)</label><input type="number" id="pc-cost" value="15000" oninput="calcP()"></div>
+        <div class="ig"><label>IIBB (%) — 0 a 10</label><input type="number" id="pc-iibb" value="3" min="0" max="10" oninput="calcP()"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div class="card" style="border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.04);">
+        <div style="font-size:11px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Precio contado (40%)</div>
+        <div style="font-size:32px;font-weight:800;color:var(--green);" id="pc-r40">$0</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;" id="pc-p40-label">Ganancia: $0</div>
+        <div style="font-size:10px;margin-top:3px;" id="pc-p40-badge"></div>
+      </div>
+      <div class="card" style="border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.04);">
+        <div style="font-size:11px;color:#6366f1;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Precio en cuotas (49%)</div>
+        <div style="font-size:32px;font-weight:800;color:#6366f1;" id="pc-r49">$0</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;" id="pc-p49-label">Ganancia: $0</div>
+        <div style="font-size:10px;margin-top:3px;" id="pc-p49-badge"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-p btn-sm" id="ptab-40" onclick="showPTab(40)">Desglose 40%</button>
+        <button class="btn btn-s btn-sm" id="ptab-49" onclick="showPTab(49)">Desglose 49%</button>
+      </div>
+      <div id="pc-break-40"></div>
+      <div id="pc-break-49" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ALERTS ═══ -->
+<div class="screen" id="sc-alerts">
+  <div class="ph"><div><h1>Alertas</h1><p>Stock crítico, conflictos SKU, ACOS fuera de rango</p></div><button class="btn btn-s btn-sm" onclick="buildAlerts()">↻ Actualizar</button></div>
+  <div id="alerts-list"><div class="es"><div class="ei">🔔</div><h3>Sin alertas</h3><p>Conectá las cuentas y cargá campañas</p></div></div>
+</div>
+
+</div></div>
+<div class="tc" id="tc"></div>
+
+<script>
+const API=''; // Vercel - uses relative paths
+let S={
+  accounts:{maraio:{connected:false,userId:null},maraio2:{connected:false,userId:null}},
+  ovAcc:'maraio',salesAcc:'maraio',adsAcc:'maraio',decAcc:'maraio',pendingAuth:null,
+  ads:{maraio:[],maraio2:[]},
+  chatAddItems:{maraio:[],maraio2:[]}, // items suggested from chat
+  skuOverrides:{},chatHistory:[]
+};
+let allListings=[],skuMap={};
+let checklist={maraio:JSON.parse(localStorage.getItem('maraio_checklist_m')||'{}'),maraio2:JSON.parse(localStorage.getItem('maraio_checklist_m2')||'{}')};
+let allDecisions={maraio:[],maraio2:[]};
+let decTabs={maraio:'roas',maraio2:'roas'};
+
+const $=id=>document.getElementById(id);
+function toast(msg,type='info'){const c=$('tc'),el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;c.appendChild(el);setTimeout(()=>el.remove(),4000);}
+
+// ── NAV ──────────────────────────────────────────────────────
+function nav(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $('sc-'+name).classList.add('active');
+  const nv=$('nv-'+name);if(nv)nv.classList.add('active');
+  const actions={overview:loadOverview,sku:loadSKU,listings:loadListings,sales:loadSales,decisions:buildDecisions,alerts:buildAlerts,pricing:()=>calcP()};
+  if(actions[name])actions[name]();
+}
+
+function selAcc(acc){
+  $('tab-maraio').className='atab'+(acc==='maraio'?' am':'');
+  $('tab-maraio2').className='atab'+(acc==='maraio2'?' am2':'');
+}
+
+function setOvAcc(acc){
+  S.ovAcc=acc;
+  ['maraio','maraio2','both'].forEach(a=>{$('ab-'+a).className='ab'+(a===acc?(a==='both'?' sboth':' s'+a):'');});
+  loadOverview();
+}
+
+function setSalesAcc(acc){
+  S.salesAcc=acc;
+  ['maraio','maraio2'].forEach(a=>$('sb-'+a).className='ab'+(a===acc?' s'+a:''));
+  loadSales();
+}
+
+function setAdsAcc(acc){
+  S.adsAcc=acc;
+  $('adtab-maraio').className='acctab'+(acc==='maraio'?' active-m':'');
+  $('adtab-maraio2').className='acctab'+(acc==='maraio2'?' active-m2':'');
+  $('ads-panel-maraio').style.display=acc==='maraio'?'block':'none';
+  $('ads-panel-maraio2').style.display=acc==='maraio2'?'block':'none';
+}
+
+function updateConnUI(){
+  let n=0;
+  ['maraio','maraio2'].forEach(acc=>{
+    const c=S.accounts[acc].connected;if(c)n++;
+    const b=$('st-'+acc);if(b){b.textContent=c?'Conectado':'Desconectado';b.className='badge '+(c?'ok':'no');}
+    if(c)$('tab-'+acc).classList.add(acc==='maraio'?'am':'am2');
+  });
+  const g=$('conn-status');
+  if(n===2){g.textContent='Ambas conectadas';g.className='badge ok';}
+  else if(n===1){g.textContent='1 conectada';g.className='badge ok';}
+  else{g.textContent='Sin conectar';g.className='badge no';}
+}
+
+// ── API ──────────────────────────────────────────────────────
+async function apiGet(acc,ep){
+  try{const r=await fetch(`${API}/api/ml?account=${acc}&endpoint=${encodeURIComponent(ep)}`);if(!r.ok)return null;return r.json();}catch{return null;}
+}
+
+async function checkStatus(){
+  try{
+    const r=await fetch(`${API}/api/status`);const d=await r.json();
+    ['maraio','maraio2'].forEach(acc=>{S.accounts[acc].connected=d[acc]?.connected||false;S.accounts[acc].userId=d[acc]?.user_id||null;});
+    updateConnUI();
+  }catch(e){toast('No se puede conectar al servidor','error');}
+}
+
+// ── AUTH ─────────────────────────────────────────────────────
+function startAuth(acc){
+  S.pendingAuth=acc;
+  const url=`https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=8285062642673402&redirect_uri=${encodeURIComponent('https://maraio.com.ar/callback')}`;
+  window.open(url,'_blank');
+  $('auth-step').style.display='block';
+  $('auth-title').textContent=`Paso 2 — Autorizar "${acc}"`;
+  $('redir-input').value='';$('auth-err').style.display='none';
+  toast('ML abierto. Autorizá y pegá la URL acá.','info');
+}
+function cancelAuth(){S.pendingAuth=null;$('auth-step').style.display='none';}
+
+async function processAuth(){
+  const url=$('redir-input').value.trim();
+  const errEl=$('auth-err'),loadEl=$('auth-loading');
+  errEl.style.display='none';
+  let code=null;
+  try{code=new URL(url.startsWith('http')?url:'https://'+url).searchParams.get('code');}
+  catch{const m=url.match(/[?&]code=([^&]+)/);if(m)code=m[1];}
+  if(!code){errEl.textContent='No se encontró el código. Copiá la URL completa.';errEl.style.display='block';return;}
+  loadEl.style.display='flex';
+  try{
+    const r=await fetch(`${API}/api/exchange_token?code=${encodeURIComponent(code)}&account=${S.pendingAuth}`);
+    const d=await r.json();
+    if(d.success){
+      S.accounts[S.pendingAuth].connected=true;S.accounts[S.pendingAuth].userId=d.user_id;
+      updateConnUI();loadEl.style.display='none';$('auth-step').style.display='none';
+      toast(`✅ "${S.pendingAuth}" conectada`,'success');S.pendingAuth=null;
+    }else throw new Error(d.error||'Error');
+  }catch(e){loadEl.style.display='none';errEl.textContent='Error: '+e.message;errEl.style.display='block';}
+}
+
+// ── OVERVIEW ─────────────────────────────────────────────────
+async function loadOverview(){
+  const accs=S.ovAcc==='both'?['maraio','maraio2']:[S.ovAcc];
+  const conn=accs.filter(a=>S.accounts[a].connected);
+  if(!conn.length){$('ov-sub').textContent='Conectá una cuenta';return;}
+  $('ov-sub').textContent=`Cargando ${conn.join(' + ')}...`;
+  let totAct=0,totSales=0,totQ=0;
+  for(const acc of conn){
+    const uid=S.accounts[acc].userId;if(!uid)continue;
+    const l=await apiGet(acc,`/users/${uid}/items/search?status=active&limit=1`);if(l)totAct+=l.paging?.total||0;
+    const o=await apiGet(acc,`/orders/search?seller=${uid}&order.status=paid&order.date_created.from=${daysAgo(30)}`);if(o)totSales+=o.paging?.total||0;
+    const q=await apiGet(acc,`/questions/search?seller_id=${uid}&status=UNANSWERED`);if(q)totQ+=q.total||0;
+  }
+  $('ov-active').textContent=totAct.toLocaleString('es-AR');$('ov-active-s').textContent='publicaciones';
+  $('ov-sales').textContent=totSales.toLocaleString('es-AR');$('ov-sales-s').textContent='órdenes pagadas';
+  $('ov-q').textContent=totQ;$('ov-q-s').textContent=totQ>0?'⚠️ pendientes':'todas respondidas';
+  $('ov-conflicts').textContent=countConflicts();
+  $('ov-sub').textContent=`Datos de: ${conn.join(' + ')}`;
+  renderChart(conn);loadTopListings(conn);
+}
+
+function countConflicts(){if(!Object.keys(skuMap).length)return'—';return Object.values(skuMap).filter(s=>s.maraio?.status==='active'&&s.maraio2?.status==='active').length;}
+
+async function renderChart(accounts){
+  const cont=$('sales-chart');
+  const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push({label:['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()],count:0});}
+  const acc=accounts[0];const uid=S.accounts[acc]?.userId;
+  if(uid){const o=await apiGet(acc,`/orders/search?seller=${uid}&order.status=paid&limit=50&sort=date_desc`);
+    if(o?.results)o.results.forEach(ord=>{const diff=Math.floor((Date.now()-new Date(ord.date_created))/86400000);if(diff>=0&&diff<7)days[6-diff].count++;});
+  }
+  const max=Math.max(...days.map(d=>d.count),1);
+  cont.innerHTML=days.map(d=>`<div class="bw"><div class="bar" style="height:${Math.max((d.count/max)*110,3)}px;background:var(--accent);opacity:${d.count>0?.8:.15};" title="${d.count} ventas"></div><div class="bl">${d.label}</div></div>`).join('');
+}
+
+async function loadTopListings(accounts){
+  const cont=$('top-body');cont.innerHTML='<div class="loading"><div class="sp"></div>Cargando...</div>';
+  let items=[];
+  for(const acc of accounts){const uid=S.accounts[acc].userId;if(!uid)continue;
+    const d=await apiGet(acc,`/users/${uid}/items/search?status=active&limit=6`);
+    if(d?.results)for(const id of d.results.slice(0,3)){const item=await apiGet(acc,`/items/${id}`);if(item)items.push({...item,account:acc});}
+  }
+  if(!items.length){cont.innerHTML='<div class="es"><p>Sin publicaciones</p></div>';return;}
+  cont.innerHTML=`<table style="width:100%;border-collapse:collapse;"><thead><tr>
+    <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Título</th>
+    <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Cuenta</th>
+    <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Precio</th>
+    <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Stock</th>
+  </tr></thead><tbody>
+  ${items.map(i=>`<tr>
+    <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);"><a href="${i.permalink}" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500;">${i.title?.substring(0,48)||'—'}</a></td>
+    <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);"><span class="tag ${i.account==='maraio'?'tb':'ti'}">${i.account}</span></td>
+    <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">$${i.price?.toLocaleString('es-AR')}</td>
+    <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);color:${i.available_quantity<=3?'var(--red)':i.available_quantity<=10?'var(--yellow)':'var(--green)'};font-weight:600;">${i.available_quantity}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+// ── SKU ───────────────────────────────────────────────────────
+async function loadSKU(){
+  $('sku-tbody').innerHTML='<tr><td colspan="7"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr>';
+  skuMap={};if(!allListings.length)await loadAllListings();
+  buildSKUMap();filterSKU();$('ov-conflicts').textContent=countConflicts();
+}
+
+async function loadAllListings(){
+  allListings=[];
+  const accs=['maraio','maraio2'].filter(a=>S.accounts[a].connected);
+  for(const acc of accs){
+    const uid=S.accounts[acc].userId;if(!uid)continue;
+    let offset=0,hasMore=true;
+    while(hasMore&&offset<500){
+      const d=await apiGet(acc,`/users/${uid}/items/search?status=active&limit=50&offset=${offset}`);
+      if(!d?.results?.length){hasMore=false;break;}
+      for(const id of d.results){const item=await apiGet(acc,`/items/${id}`);if(item)allListings.push({...item,account:acc,sku:getSKU(item)});}
+      offset+=50;if(offset>=(d.paging?.total||0))hasMore=false;
+    }
+  }
+}
+
+function getSKU(item){
+  if(item.attributes){const s=item.attributes.find(a=>a.id==='SELLER_SKU'||a.id==='SKU');if(s?.value_name)return s.value_name;}
+  return item.seller_sku||item.id||'—';
+}
+
+function buildSKUMap(){
+  skuMap={};
+  allListings.forEach(item=>{const sku=item.sku||item.id;if(!skuMap[sku])skuMap[sku]={sku,maraio:null,maraio2:null};skuMap[sku][item.account]=item;});
+}
+
+function filterSKU(){
+  const search=$('sku-search').value.toLowerCase();const filter=$('sku-filter').value;
+  const tbody=$('sku-tbody');let entries=Object.values(skuMap);
+  if(search)entries=entries.filter(e=>e.sku.toLowerCase().includes(search)||(e.maraio?.title||e.maraio2?.title||'').toLowerCase().includes(search));
+  if(filter==='conflict')entries=entries.filter(e=>e.maraio?.status==='active'&&e.maraio2?.status==='active');
+  if(filter==='maraio')entries=entries.filter(e=>e.maraio&&!e.maraio2);
+  if(filter==='maraio2')entries=entries.filter(e=>!e.maraio&&e.maraio2);
+  if(!entries.length){tbody.innerHTML='<tr><td colspan="7"><div class="es"><p>Sin resultados</p></div></td></tr>';return;}
+  tbody.innerHTML=entries.map(e=>{
+    const isConflict=e.maraio?.status==='active'&&e.maraio2?.status==='active';
+    const item=e.maraio||e.maraio2;const price=e.maraio?.price||e.maraio2?.price||0;
+    const stock=(e.maraio?.available_quantity||0)+(e.maraio2?.available_quantity||0);
+    return `<tr class="${isConflict?'conflict':''}">
+      <td><span class="sku-badge">${e.sku}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item?.title?.substring(0,50)||'—'}</td>
+      <td>${e.maraio?`<span class="tag ${e.maraio.status==='active'?'tg':'ty'}">${e.maraio.status==='active'?'Activo':'Pausado'}</span>`:'<span style="color:var(--text3);">—</span>'}</td>
+      <td>${e.maraio2?`<span class="tag ${e.maraio2.status==='active'?'tg':'ty'}">${e.maraio2.status==='active'?'Activo':'Pausado'}</span>`:'<span style="color:var(--text3);">—</span>'}</td>
+      <td>$${price.toLocaleString('es-AR')}</td>
+      <td style="color:${stock<=5?'var(--red)':stock<=15?'var(--yellow)':'var(--green)'};font-weight:600;">${stock}</td>
+      <td>${isConflict?'<span class="tag tr">⚠️ Conflicto</span>':e.maraio&&e.maraio2?'<span class="tag ty">En ambas</span>':e.maraio?'<span class="tag tb">Solo maraio</span>':'<span class="tag ti">Solo maraio2</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── LISTINGS ──────────────────────────────────────────────────
+async function loadListings(){
+  $('ls-tbody').innerHTML='<tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr>';
+  if(!allListings.length)await loadAllListings();filterListings();
+}
+
+function filterListings(){
+  const s=$('ls-search').value.toLowerCase();const acc=$('ls-acc').value;const stk=$('ls-stock').value;
+  let items=allListings.filter(i=>{
+    if(s&&!i.title?.toLowerCase().includes(s)&&!i.id?.toLowerCase().includes(s)&&!i.sku?.toLowerCase().includes(s))return false;
+    if(acc!=='all'&&i.account!==acc)return false;
+    if(stk==='low'&&i.available_quantity>5)return false;
+    if(stk==='out'&&i.available_quantity>0)return false;
+    return true;
+  });
+  const tbody=$('ls-tbody');
+  if(!items.length){tbody.innerHTML='<tr><td colspan="6"><div class="es"><p>Sin resultados</p></div></td></tr>';return;}
+  tbody.innerHTML=items.map(i=>{
+    const sc=i.available_quantity<=3?'var(--red)':i.available_quantity<=10?'var(--yellow)':'var(--green)';
+    return `<tr>
+      <td><a href="${i.permalink}" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500;">${i.title?.substring(0,45)||'—'}</a><div style="font-size:10px;color:var(--text3);">${i.id}</div></td>
+      <td><span class="sku-badge">${i.sku||'—'}</span></td>
+      <td><span class="tag ${i.account==='maraio'?'tb':'ti'}">${i.account}</span></td>
+      <td>$${i.price?.toLocaleString('es-AR')}</td>
+      <td><span style="color:${sc};font-weight:600;">${i.available_quantity}</span></td>
+      <td><span class="tag ${i.status==='active'?'tg':i.status==='paused'?'ty':'tr'}">${i.status==='active'?'Activo':i.status==='paused'?'Pausado':'Cerrado'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── SALES ─────────────────────────────────────────────────────
+async function loadSales(){
+  const tbody=$('sales-tbody');const acc=S.salesAcc;
+  if(!S.accounts[acc].connected){tbody.innerHTML='<tr><td colspan="6"><div class="es"><h3>Cuenta no conectada</h3></div></td></tr>';return;}
+  tbody.innerHTML='<tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr>';
+  const uid=S.accounts[acc].userId;
+  const d=await apiGet(acc,`/orders/search?seller=${uid}&order.status=paid&sort=date_desc&limit=50`);
+  if(!d?.results?.length){tbody.innerHTML='<tr><td colspan="6"><div class="es"><p>Sin ventas recientes</p></div></td></tr>';return;}
+  tbody.innerHTML=d.results.map(o=>{
+    const date=new Date(o.date_created).toLocaleDateString('es-AR');
+    const item=o.order_items?.[0];const title=item?.item?.title||'—';const sku=item?.item?.seller_sku||'—';
+    const qty=item?.quantity||1;const total='$'+(o.total_amount||0).toLocaleString('es-AR');
+    return `<tr><td style="font-size:10px;color:var(--text2);">${o.id}</td><td>${date}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</td><td><span class="sku-badge">${sku}</span></td><td>${qty}</td><td style="font-weight:600;">${total}</td></tr>`;
+  }).join('');
+}
+
+// ── ADS FILE HANDLING ─────────────────────────────────────────
+function dragOver(e,acc){e.preventDefault();$('uz-'+acc).classList.add('drag');}
+function dragLeave(acc){$('uz-'+acc).classList.remove('drag');}
+function dropFile(e,acc){e.preventDefault();$('uz-'+acc).classList.remove('drag');handleFiles(e.dataTransfer.files,acc);}
+
+function handleFiles(files,acc){
+  for(const f of files){
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(ext==='xlsx'||ext==='xls'){readXLSX(f,acc);}
+    else{const r=new FileReader();r.onload=ev=>parseMLReport(ev.target.result,f.name,'csv',acc);r.readAsText(f,'UTF-8');}
+  }
+}
+
+function readXLSX(file,acc){
+  if(typeof XLSX==='undefined'){
+    const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>readXLSXWithLib(file,acc);document.head.appendChild(s);
+  }else readXLSXWithLib(file,acc);
+}
+
+function readXLSXWithLib(file,acc){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const dataSheet=wb.SheetNames.find(n=>n.toLowerCase().includes('anuncio')||n.toLowerCase().includes('reporte por'))||wb.SheetNames[wb.SheetNames.length-1];
+      const ws=wb.Sheets[dataSheet];const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let headerRow=-1;
+      for(let i=0;i<Math.min(raw.length,10);i++){
+        const rowStr=raw[i].map(c=>String(c||'').toLowerCase().replace(/\n/g,' ')).join('|');
+        if(rowStr.includes('campaña')||rowStr.includes('desde')||rowStr.includes('estado')){headerRow=i;break;}
+      }
+      if(headerRow===-1){toast('No se encontró el encabezado en '+file.name,'error');return;}
+      const headers=raw[headerRow].map(h=>String(h||'').replace(/\n/g,' ').replace(/\s+/g,' ').trim().toLowerCase());
+      const dataRows=raw.slice(headerRow+1).filter(r=>r.some(c=>c!==''));
+      const text=[headers.join('\t'),...dataRows.map(r=>r.map(c=>c===null||c===undefined?'':String(c)).join('\t'))].join('\n');
+      parseMLReport(text,file.name,'tsv',acc);
+    }catch(err){toast('Error leyendo '+file.name+': '+err.message,'error');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
+
+function parseMLReport(text,filename,format,acc){
+  const delim=format==='tsv'?'\t':(text.split('\n')[0].split('\t').length>3?'\t':text.split('\n')[0].split(';').length>text.split('\n')[0].split(',').length?';':',');
+  const lines=text.split('\n').filter(l=>l.trim());
+  if(lines.length<2){toast('Archivo vacío: '+filename,'error');return;}
+  const rawHeaders=lines[0].split(delim).map(h=>h.trim().replace(/"/g,'').toLowerCase());
+  const fieldMap={};
+  rawHeaders.forEach((h,i)=>{
+    const clean=h.replace(/\n/g,' ').replace(/\s+/g,' ').trim();
+    if(COL_MAP[clean]){fieldMap[i]=COL_MAP[clean];return;}
+    for(const [p,f] of Object.entries(COL_MAP)){if(clean===p||clean.includes(p)||p.includes(clean)){fieldMap[i]=f;return;}}
+    if(!fieldMap[i]){
+      if(clean.includes('publicac')||clean==='mla')fieldMap[i]='mla';
+      else if(clean==='desde')fieldMap[i]='from';else if(clean==='hasta')fieldMap[i]='to';
+      else if(clean.includes('título')||clean.includes('titulo'))fieldMap[i]='title';
+      else if(clean.includes('campaña'))fieldMap[i]='campaign';
+    }
+  });
+  const ads=[];
+  for(const line of lines.slice(1)){
+    const vals=line.split(delim).map(v=>v.trim().replace(/"/g,''));
+    if(vals.every(v=>!v))continue;
+    const row={source:filename,account:acc};
+    Object.entries(fieldMap).forEach(([i,f])=>{row[f]=vals[i]||'';});
+    if(!row.mla&&!row.campaign)continue;
+    ['impressions','clicks','cpc','ctr','cvr','revenue','spend','acos','roas','direct_sales','indirect_sales','total_sales','direct_revenue','indirect_revenue'].forEach(f=>{
+      const v=String(row[f]||'').replace(/[^0-9.,\-]/g,'').replace(',','.');
+      row[f]=v===''||v==='-'?null:parseFloat(v)||0;
+    });
+    if(row.status)row.status=row.status.trim();
+    ads.push(row);
+  }
+  if(!ads.length){toast('No se encontraron datos en '+filename,'error');return;}
+  S.ads[acc]=[...S.ads[acc].filter(a=>a.source!==filename),...ads];
+  renderAdsForAccount(acc);
+  buildDecisions();
+  toast(`✅ ${ads.length} anuncios de ${acc} desde ${filename}`,'success');
+}
+
+function clearAds(acc){
+  S.ads[acc]=[];renderAdsForAccount(acc);buildDecisions();
+}
+
+function renderAdsForAccount(acc){
+  const ads=S.ads[acc];
+  const summaryEl=$('ads-summary-'+acc);
+  const emptyEl=$('ads-empty-'+acc);
+  if(!ads.length){summaryEl.style.display='none';emptyEl.style.display='block';return;}
+  summaryEl.style.display='block';emptyEl.style.display='none';
+
+  // Metrics
+  const active=ads.filter(a=>a.status==='Activo');
+  const totalSpend=ads.reduce((s,a)=>s+(a.spend||0),0);
+  const totalRev=ads.reduce((s,a)=>s+(a.revenue||0),0);
+  const gRoas=totalSpend>0?totalRev/totalSpend:0;
+  const gAcos=totalRev>0?(totalSpend/totalRev)*100:0;
+  const color=acc==='maraio'?'#3b82f6':'#6366f1';
+  $('ads-metrics-'+acc).innerHTML=`
+    <div class="mc"><div class="mlb">Activos</div><div class="mv">${active.length}</div><div class="ms">de ${ads.length}</div></div>
+    <div class="mc"><div class="mlb">Inversión</div><div class="mv" style="font-size:18px;">$${Math.round(totalSpend).toLocaleString('es-AR')}</div><div class="ms">período</div></div>
+    <div class="mc"><div class="mlb">ROAS global</div><div class="mv ${gRoas>=10?'up':gRoas>=5?'nt':'dn'}">${gRoas.toFixed(1)}x</div><div class="ms">ingresos/inversión</div></div>
+    <div class="mc"><div class="mlb">ACOS global</div><div class="mv ${gAcos<=10?'up':gAcos<=15?'nt':'dn'}">${gAcos.toFixed(1)}%</div><div class="ms">inversión/ingresos</div></div>`;
+
+  // Group by campaign name — only show campaigns with active ads
+  const campMap={};
+  ads.forEach(ad=>{const c=ad.campaign||'Sin campaña';if(!campMap[c])campMap[c]=[];campMap[c].push(ad);});
+
+  const listEl=$('camps-list-'+acc);
+  // Filter: only campaigns with at least 1 active ad
+  const activeCamps=Object.entries(campMap).filter(([,campAds])=>campAds.some(a=>a.status==='Activo'));
+  
+  if(!activeCamps.length){
+    listEl.innerHTML='<div class="es"><p>Sin campañas activas en el período</p></div>';
+    return;
+  }
+
+  listEl.innerHTML=activeCamps.map(([campName,campAds])=>{
+    const cSpend=campAds.reduce((s,a)=>s+(a.spend||0),0);
+    const cRev=campAds.reduce((s,a)=>s+(a.revenue||0),0);
+    const cRoas=cSpend>0?cRev/cSpend:0;
+    const cActive=campAds.filter(a=>a.status==='Activo').length;
+    const roasC=cRoas>=15?'tg':cRoas>=8?'ty':'tr';
+    const id=`camp_${acc}_${campName.replace(/[^a-z0-9]/gi,'_')}`;
+    return `<div class="camp-card">
+      <div class="camp-header" onclick="toggleCamp('${id}')">
+        <div class="camp-name">${campName}</div>
+        <div class="camp-metrics-mini">
+          <span style="font-size:11px;color:var(--text2);">${cActive} activos</span>
+          <span class="tag ${roasC}">ROAS ${cRoas.toFixed(1)}x</span>
+          <span style="font-size:11px;color:var(--text2);">$${Math.round(cSpend).toLocaleString('es-AR')} inv.</span>
+          <span style="font-size:11px;color:var(--text2);">$${Math.round(cRev).toLocaleString('es-AR')} ing.</span>
+          <span style="font-size:12px;color:var(--text3);">▼</span>
+        </div>
+      </div>
+      <div class="camp-body" id="${id}">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Artículo</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Estado</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Impr.</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Clicks</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">CTR</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Inversión</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Ingresos</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">ROAS</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">ACOS</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Ventas</th>
+            <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Rec.</th>
+          </tr></thead>
+          <tbody>
+          ${campAds.filter(a=>(a.impressions||0)>0||(a.clicks||0)>0||(a.spend||0)>0).map(ad=>{
+            const rec=getRecommendation(ad);
+            const hasData=(ad.impressions||0)>0||(ad.clicks||0)>0;
+            const acosLim=getAcosLimit(ad);const roasTgt=getRoasTarget(ad);
+            const ac=ad.acos===null?'':ad.acos<=acosLim?'tg':ad.acos<=acosLim*1.5?'ty':'tr';
+            const rc=ad.roas===null?'':ad.roas>=roasTgt?'tg':ad.roas>=5?'ty':'tr';
+            const sc=ad.status==='Activo'?'tg':ad.status==='Pausado'?'ty':'';
+            return `<tr>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">
+                <div style="font-weight:500;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ad.title||''}">${ad.title?.substring(0,35)||'—'}</div>
+                <div style="font-size:10px;color:var(--text3);">${ad.mla||'—'}</div>
+              </td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${ad.status?`<span class="tag ${sc}">${ad.status}</span>`:'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${hasData?(ad.impressions||0).toLocaleString('es-AR'):'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${hasData?(ad.clicks||0).toLocaleString('es-AR'):'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${ad.ctr!==null&&hasData?ad.ctr.toFixed(2)+'%':'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${ad.spend>0?'$'+Math.round(ad.spend).toLocaleString('es-AR'):'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${(ad.revenue||0)>0?'$'+Math.round(ad.revenue).toLocaleString('es-AR'):'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${ad.roas!==null&&hasData?`<span class="tag ${rc}">${ad.roas.toFixed(1)}x</span>`:'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${ad.acos!==null&&hasData?`<span class="tag ${ac}">${ad.acos.toFixed(1)}%</span>`:'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${(ad.total_sales||ad.direct_sales||0)>0?(ad.total_sales||ad.direct_sales):'-'}</td>
+              <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);"><span class="tag ${rec.cls}" style="white-space:nowrap;">${rec.text}</span></td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCamp(id){const el=$(id);el.classList.toggle('open');}
+
+function getAcosLimit(ad){const rev=ad.revenue||0;const sales=ad.total_sales||ad.direct_sales||1;return(sales>0?rev/sales:0)>=40000?5:10;}
+function getRoasTarget(ad){const rev=ad.revenue||0;const sales=ad.total_sales||ad.direct_sales||1;return(sales>0?rev/sales:0)>=40000?20:15;}
+function getRecommendation(ad){
+  const hasData=(ad.impressions||0)>0||(ad.clicks||0)>0;
+  if(!hasData)return{text:'Sin datos',cls:'tb'};
+  if(ad.status==='Deshabilitado')return{text:'Sin stock',cls:'tr'};
+  const al=getAcosLimit(ad),rt=getRoasTarget(ad);
+  const clicks=ad.clicks||0;const sales=ad.total_sales||ad.direct_sales||0;
+  const spend=ad.spend||0;const impr=ad.impressions||0;
+  if(ad.acos!==null&&ad.acos>al*2&&spend>200)return{text:'⏸ Pausar urgente',cls:'tr'};
+  if(ad.acos!==null&&ad.acos>al)return{text:'↓ ACOS alto',cls:'ty'};
+  if(clicks>30&&sales===0&&spend>100)return{text:'⏸ Sin ventas',cls:'tr'};
+  if(ad.roas!==null&&ad.roas<5&&spend>200&&sales>0)return{text:'⏸ ROAS bajo',cls:'tr'};
+  if(impr>10000&&clicks<20)return{text:'↗ CTR bajo',cls:'ty'};
+  if(ad.roas!==null&&ad.roas>=rt&&(ad.ctr||0)>0.2)return{text:'↑ Escalar',cls:'tg'};
+  if(ad.roas!==null&&ad.roas>=rt)return{text:'✓ Mantener',cls:'tg'};
+  return{text:'Monitorear',cls:'tb'};
+}
+
+// ── DECISIONS ─────────────────────────────────────────────────
+function setDecAcc(acc){
+  S.decAcc=acc;
+  $('dectab-maraio').className='acctab'+(acc==='maraio'?' active-m':'');
+  $('dectab-maraio2').className='acctab'+(acc==='maraio2'?' active-m2':'');
+  $('dec-panel-maraio').style.display=acc==='maraio'?'block':'none';
+  $('dec-panel-maraio2').style.display=acc==='maraio2'?'block':'none';
+}
+
+function showDecTab(acc,tab){
+  decTabs[acc]=tab;
+  ['roas','budget','pause','add','calendar'].forEach(t=>{
+    const b=$(`dtab-${acc}-${t}`);
+    if(b) b.className='btn btn-sm '+(t===tab?'btn-p':'btn-s');
+  });
+  renderDecTabForAcc(acc);
+}
+
+// ── HELPERS FOR DECISIONS ────────────────────────────────────
+function getCampaignStats(acc){
+  // Group ads by campaign and compute campaign-level metrics
+  const campMap={};
+  S.ads[acc].forEach(ad=>{
+    const c=ad.campaign||'Sin campaña';
+    if(!campMap[c])campMap[c]={name:c,account:acc,ads:[],spend:0,revenue:0,impressions:0,clicks:0,direct_sales:0,total_sales:0,budgets:[]};
+    campMap[c].ads.push(ad);
+    campMap[c].spend+=(ad.spend||0);
+    campMap[c].revenue+=(ad.revenue||0);
+    campMap[c].impressions+=(ad.impressions||0);
+    campMap[c].clicks+=(ad.clicks||0);
+    campMap[c].direct_sales+=(ad.direct_sales||0);
+    campMap[c].total_sales+=(ad.total_sales||ad.direct_sales||0);
+  });
+  // Compute campaign-level ROAS and avg ROAS of active ads
+  Object.values(campMap).forEach(c=>{
+    c.roas=c.spend>0?c.revenue/c.spend:0;
+    c.acos=c.revenue>0?(c.spend/c.revenue)*100:0;
+    c.ctr=c.impressions>0?(c.clicks/c.impressions)*100:0;
+    c.activeAds=c.ads.filter(a=>a.status==='Activo');
+    // Estimate current ROAS target from individual ad ROAS values (median of active)
+    const roasVals=c.activeAds.map(a=>a.roas).filter(r=>r!==null&&r>0);
+    c.estimatedRoasTarget=roasVals.length>0?Math.round(roasVals.reduce((a,b)=>a+b,0)/roasVals.length):null;
+  });
+  return campMap;
+}
+
+function detectSharedBudget(acc){
+  // If all active campaigns have identical spend patterns, likely shared budget
+  const camps=Object.values(getCampaignStats(acc));
+  if(camps.length<=1)return false;
+  // Simple heuristic: if total spend across campaigns is very even, it's shared
+  const spends=camps.map(c=>c.spend).filter(s=>s>0);
+  if(spends.length<2)return false;
+  const avg=spends.reduce((a,b)=>a+b,0)/spends.length;
+  const maxDev=Math.max(...spends.map(s=>Math.abs(s-avg)/avg));
+  return maxDev<0.15; // within 15% = likely shared
+}
+
+function suggestReplacement(acc,pausedMla){
+  // Find a candidate to replace a paused ad — not in other account, has stock
+  const otherAcc=acc==='maraio'?'maraio2':'maraio';
+  const adsInOtherAcc=new Set(S.ads[otherAcc].filter(a=>a.status==='Activo').map(a=>a.mla));
+  const adsInThisAcc=new Set(S.ads[acc].map(a=>a.mla));
+  const candidates=allListings.filter(i=>
+    i.account===acc&&
+    i.status==='active'&&
+    i.available_quantity>5&&
+    i.id!==pausedMla&&
+    !adsInThisAcc.has(i.id)&&
+    !adsInOtherAcc.has(i.id)
+  );
+  return candidates[0]||null;
+}
+
+function buildDecisions(){
+  const allAds=[...S.ads.maraio,...S.ads.maraio2];
+  if(!allAds.length&&!allListings.length){
+    $('dec-content').innerHTML='<div class="es"><div class="ei">🎯</div><h3>Sin datos</h3><p>Cargá los reportes de ML Ads en Campañas primero</p></div>';
+    return;
+  }
+  allDecisions={maraio:[],maraio2:[]};
+
+  // Today for "review on" dates
+  const today=new Date();
+  function reviewDate(days){const d=new Date(today);d.setDate(d.getDate()+days);return d.toLocaleDateString('es-AR');}
+
+  // SKU conflicts — show in both accounts
+  Object.values(skuMap).filter(s=>s.maraio?.status==='active'&&s.maraio2?.status==='active').forEach(s=>{
+    const dec={icon:'🚨',type:'danger',category:'pause',action:'CONFLICTO SKU',
+      title:`SKU activo en ambas cuentas: ${s.sku}`,
+      detail:`El mismo SKU está en maraio Y maraio2. Pausalo en una de las dos — viola la regla de unicidad.`,
+      priority:0,account:'ambas',id:'sku_'+s.sku};
+    allDecisions.maraio.push(dec);
+    allDecisions.maraio2.push({...dec,id:'sku2_'+s.sku});
+  });
+
+  // Per-account, per-CAMPAIGN decisions
+  ['maraio','maraio2'].forEach(acc=>{
+    const campStats=getCampaignStats(acc);
+    const isShared=detectSharedBudget(acc);
+
+    // Show shared budget info once
+    if(isShared&&Object.keys(campStats).length>1){
+      const totalSpend=Object.values(campStats).reduce((s,c)=>s+c.spend,0);
+      allDecisions[acc].push({icon:'💡',type:'info',category:'budget',action:'PRESUPUESTO COMPARTIDO',
+        title:`Presupuesto compartido — ${acc}`,
+        detail:`Tus campañas de ${acc} usan presupuesto compartido. Inversión total del período: $${Math.round(totalSpend).toLocaleString('es-AR')}. Cualquier ajuste de presupuesto afecta a todas las campañas juntas — ajustalo desde el panel de ML Ads en la configuración de la cuenta.`,
+        priority:5,account:acc,id:'shared_budget_'+acc});
+    }
+
+    Object.values(campStats).forEach(camp=>{
+      const campId=camp.name.replace(/[^a-z0-9]/gi,'_')+'_'+acc;
+      const currentRoas=camp.roas; // ROAS real del período
+      // ROAS objetivo actual: lo estimamos como el ROAS real + margen
+      // En ML Ads el ROAS objetivo es el que vos configuraste — acá lo estimamos
+      const estimatedTarget=camp.estimatedRoasTarget||Math.round(currentRoas*1.2)||10;
+      const priceProxy=camp.spend>0&&camp.total_sales>0?(camp.revenue/camp.total_sales):0;
+      const isHighPrice=priceProxy>=40000;
+      const roasTarget=isHighPrice?20:15;
+      const roasMin=isHighPrice?10:8;
+      const campBudgetDaily=Math.max(1,Math.round(camp.spend/30)); // presupuesto diario estimado
+
+      // ── ROAS decisions (per campaign) ──
+      if(currentRoas>0&&currentRoas>=roasTarget&&(camp.ctr||0)>0.1){
+        const newTarget=Math.min(35,estimatedTarget+2);
+        allDecisions[acc].push({icon:'📈',type:'ok',category:'roas',action:'SUBIR ROAS OBJETIVO',
+          title:`Campaña: ${camp.name}`,
+          detail:`ROAS real del período: ${currentRoas.toFixed(1)}x (objetivo sugerido: ≥${roasTarget}x). En ML Ads → Campañas → "${camp.name}" → subí el ROAS objetivo a ${newTarget}x (+2). Esperá 7-10 días antes del próximo ajuste. Revisá el ${reviewDate(7)}.`,
+          priority:4,account:acc,campaign:camp.name,id:'roas_up_'+campId});
+      } else if(currentRoas>0&&currentRoas<roasMin&&camp.spend>0){
+        const newTarget=Math.max(1,estimatedTarget-2);
+        allDecisions[acc].push({icon:'📉',type:'warn',category:'roas',action:'BAJAR ROAS OBJETIVO',
+          title:`Campaña: ${camp.name}`,
+          detail:`ROAS real ${currentRoas.toFixed(1)}x — bajo el mínimo aceptable (${roasMin}x). En ML Ads → Campañas → "${camp.name}" → bajá el ROAS objetivo a ${newTarget}x (-2) para dar más margen al algoritmo. Inversión: $${Math.round(camp.spend).toLocaleString('es-AR')} → $${Math.round(camp.revenue).toLocaleString('es-AR')} en ventas. Revisá el ${reviewDate(7)}.`,
+          priority:2,account:acc,campaign:camp.name,id:'roas_dn_'+campId});
+      } else if(currentRoas>0&&currentRoas>=roasMin&&currentRoas<roasTarget){
+        allDecisions[acc].push({icon:'⏳',type:'info',category:'roas',action:'MONITOREAR',
+          title:`Campaña: ${camp.name}`,
+          detail:`ROAS real ${currentRoas.toFixed(1)}x — en zona intermedia (mín ${roasMin}x, objetivo ${roasTarget}x). No tocar el ROAS objetivo de la campaña por ahora. Esperá hasta el ${reviewDate(7)} para evaluar si mejoró.`,
+          priority:5,account:acc,campaign:camp.name,id:'roas_hold_'+campId});
+      }
+
+      // ── BUDGET decisions (per campaign) ──
+      if(currentRoas>=roasTarget&&camp.impressions>0){
+        const suggestedBudget=Math.round(campBudgetDaily*1.3/100)*100||campBudgetDaily+1000;
+        allDecisions[acc].push({icon:'💰',type:'ok',category:'budget',action:'SUBIR PRESUPUESTO',
+          title:`Campaña: ${camp.name}`,
+          detail:`ROAS ${currentRoas.toFixed(1)}x — la campaña está performando bien. ${isShared?'⚠️ Presupuesto compartido: el ajuste afecta todas las campañas de '+acc+'.':'En ML Ads → Campañas → "'+camp.name+'" →'} subí el presupuesto diario de ~$${campBudgetDaily.toLocaleString('es-AR')} a ~$${suggestedBudget.toLocaleString('es-AR')} (+30%). Revisá el ${reviewDate(7)}.`,
+          priority:3,account:acc,campaign:camp.name,id:'budget_up_'+campId});
+      } else if(currentRoas>0&&currentRoas<roasMin&&camp.spend>0){
+        const suggestedBudget=Math.max(100,Math.round(campBudgetDaily*0.7/100)*100||campBudgetDaily-1000);
+        allDecisions[acc].push({icon:'📊',type:'warn',category:'budget',action:'BAJAR PRESUPUESTO',
+          title:`Campaña: ${camp.name}`,
+          detail:`ROAS bajo (${currentRoas.toFixed(1)}x). ${isShared?'⚠️ Presupuesto compartido: el ajuste afecta todas las campañas de '+acc+'.':'En ML Ads → Campañas → "'+camp.name+'" →'} bajá el presupuesto diario de ~$${campBudgetDaily.toLocaleString('es-AR')} a ~$${suggestedBudget.toLocaleString('es-AR')} (-30%) hasta que mejore el ROAS. Revisá el ${reviewDate(7)}.`,
+          priority:2,account:acc,campaign:camp.name,id:'budget_dn_'+campId});
+      }
+
+      // ── PAUSE / REPLACE decisions ──
+      camp.activeAds.forEach(ad=>{
+        const adId=(ad.mla||ad.title||'x').replace(/[^a-z0-9]/gi,'_')+'_'+acc;
+        const title=ad.title?.substring(0,45)||ad.mla||'—';
+        const adRoas=ad.roas;
+        const adClicks=ad.clicks||0;
+        const adSales=ad.total_sales||ad.direct_sales||0;
+        const adSpend=ad.spend||0;
+        const adImpressions=ad.impressions||0;
+        const adAcos=ad.acos;
+        const acosLimit=getAcosLimit(ad);
+        const roasTgt=getRoasTarget(ad);
+
+        // ACOS muy alto (doble del límite) → pausar urgente
+        if(adAcos!==null&&adAcos>acosLimit*2&&adSpend>200){
+          const replacement=suggestReplacement(acc,ad.mla);
+          const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:'';
+          allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'PAUSAR URGENTE',
+            title,detail:`ACOS ${adAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). $${Math.round(adSpend).toLocaleString('es-AR')} invertidos → $${Math.round(ad.revenue||0).toLocaleString('es-AR')} en ventas. ROAS ${adRoas?.toFixed(1)||'—'}x.${replDetail}`,
+            priority:0,account:acc,mla:ad.mla,campaign:camp.name,id:'pause_acos_'+adId});
+
+        // ACOS sobre el límite → bajar ROAS objetivo de la campaña
+        } else if(adAcos!==null&&adAcos>acosLimit&&adSpend>100){
+          allDecisions[acc].push({icon:'📉',type:'warn',category:'pause',action:'ACOS ALTO',
+            title,detail:`ACOS ${adAcos.toFixed(1)}% sobre el límite (${acosLimit}%). En ML Ads → Campañas → "${camp.name}" → bajá el ROAS objetivo para mejorar eficiencia. ROAS actual: ${adRoas?.toFixed(1)||'—'}x.`,
+            priority:1,account:acc,mla:ad.mla,campaign:camp.name,id:'acos_high_'+adId});
+
+        // Muchos clicks, cero ventas
+        } else if(adClicks>30&&adSales===0&&adSpend>100){
+          const replacement=suggestReplacement(acc,ad.mla);
+          const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:'';
+          allDecisions[acc].push({icon:'🔍',type:'warn',category:'pause',action:'SIN VENTAS',
+            title,detail:`${adClicks} clicks y 0 ventas en "${camp.name}". $${Math.round(adSpend).toLocaleString('es-AR')} invertidos sin retorno. Revisá precio y publicación.${replDetail}`,
+            priority:1,account:acc,mla:ad.mla,campaign:camp.name,id:'noconv_'+adId});
+
+        // ROAS muy bajo con inversión
+        } else if(adRoas!==null&&adRoas<5&&adSpend>200&&adSales>0){
+          const replacement=suggestReplacement(acc,ad.mla);
+          const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:' Sin candidatos sin conflicto de SKU.';
+          allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'ROAS MUY BAJO',
+            title,detail:`ROAS ${adRoas.toFixed(1)}x — muy bajo. $${Math.round(adSpend).toLocaleString('es-AR')} invertidos en "${camp.name}".${replDetail}`,
+            priority:1,account:acc,mla:ad.mla,campaign:camp.name,id:'lowroas_'+adId});
+
+        // Muchas impresiones, pocos clicks → problema de publicación
+        } else if(adImpressions>10000&&adClicks<20){
+          allDecisions[acc].push({icon:'🖼️',type:'warn',category:'pause',action:'CTR MUY BAJO',
+            title,detail:`${adImpressions.toLocaleString('es-AR')} impresiones y solo ${adClicks} clicks (CTR ${((adClicks/adImpressions)*100).toFixed(2)}%) en "${camp.name}". Mejorá título, foto principal y precio.`,
+            priority:2,account:acc,mla:ad.mla,campaign:camp.name,id:'ctr_'+adId});
+        }
+      });
+
+      // Stock issues
+      camp.activeAds.forEach(ad=>{
+        const listing=allListings.find(i=>i.id===ad.mla&&i.account===acc);
+        if(listing){
+          if(listing.available_quantity===0){
+            allDecisions[acc].push({icon:'🚫',type:'danger',category:'pause',action:'SIN STOCK + AD ACTIVO',
+              title:`${ad.title?.substring(0,40)||ad.mla}`,
+              detail:`Sin stock en ${acc} pero el anuncio sigue activo en "${camp.name}". Pausalo inmediatamente.`,
+              priority:0,account:acc,id:'stock0_'+ad.mla+'_'+acc});
+          } else if(listing.available_quantity<=3){
+            allDecisions[acc].push({icon:'📦',type:'warn',category:'pause',action:'STOCK CRÍTICO',
+              title:`${ad.title?.substring(0,40)||ad.mla}`,
+              detail:`Solo ${listing.available_quantity} unidades. Campaña: "${camp.name}". Considerá pausar o reponer urgente.`,
+              priority:2,account:acc,id:'lowstock_'+ad.mla+'_'+acc});
+          }
+        }
+      });
+    });
+
+    // ADD candidates from listings (not yet in ads of either account)
+    if(allListings.length){
+      const adsInThisAcc=new Set(S.ads[acc].map(a=>a.mla));
+      const otherAcc=acc==='maraio'?'maraio2':'maraio';
+      const adsInOtherAcc=new Set(S.ads[otherAcc].filter(a=>a.status==='Activo').map(a=>a.mla));
+      allListings.filter(i=>i.account===acc&&i.status==='active'&&i.available_quantity>5&&!adsInThisAcc.has(i.id)&&!adsInOtherAcc.has(i.id)).slice(0,5).forEach(i=>{
+        const priceLabel=i.price>=40000?'Alto margen (≥$40k)':'Precio bajo $40k';
+        allDecisions[acc].push({icon:'➕',type:'info',category:'add',action:'CANDIDATO',
+          title:`${i.title?.substring(0,45)}`,
+          detail:`Sin campaña activa en ${acc} ni en ${otherAcc}. ${priceLabel} · $${i.price?.toLocaleString('es-AR')} · Stock: ${i.available_quantity}u. Agregalo a la campaña más afín si tiene ventas orgánicas.`,
+          priority:3,account:acc,mla:i.id,id:'add_'+i.id+'_'+acc});
+      });
+    }
+
+    // ADD items suggested from chat
+    (S.chatAddItems[acc]||[]).forEach(item=>{
+      allDecisions[acc].push({icon:'💬',type:'info',category:'add',action:'SUGERIDO POR CHAT',
+        title:item.title,detail:item.detail,priority:3,account:acc,mla:item.mla,id:'chat_add_'+item.mla+'_'+acc});
+    });
+
+    allDecisions[acc].sort((a,b)=>a.priority-b.priority);
+  });
+
+  renderDecTabForAcc('maraio');
+  renderDecTabForAcc('maraio2');
+  renderChecklist('maraio');
+  renderChecklist('maraio2');
+}
+
+function renderDecTabForAcc(acc){
+  const tab=decTabs[acc]||'roas';
+  const cont=$(`dec-content-${acc}`);
+  const decisions=allDecisions[acc]||[];
+
+  if(!decisions.length){
+    cont.innerHTML='<div class="es"><div class="ei">🎯</div><h3>Sin datos</h3><p>Cargá el reporte de ML Ads en Campañas</p></div>';
+    $(`dec-checklist-${acc}`).style.display='none';
+    return;
+  }
+  if(tab==='calendar'){renderCalendarForAcc(acc);$(`dec-checklist-${acc}`).style.display='none';return;}
+
+  const filtered=decisions.filter(d=>d.category===tab);
+  const colors={danger:'var(--red)',warn:'var(--yellow)',ok:'var(--green)',info:'var(--accent)'};
+  const tagCls={danger:'tr',warn:'ty',ok:'tg',info:'tb'};
+
+  if(!filtered.length){
+    cont.innerHTML=`<div class="es"><div class="ei">✅</div><h3>Sin recomendaciones acá</h3><p>Todo en orden para ${acc} en esta categoría</p></div>`;
+  } else {
+    cont.innerHTML=filtered.map(d=>{
+      const done=(checklist[acc]||{})[d.id];
+      return `<div class="dec-card" style="border-left:3px solid ${colors[d.type]||'var(--accent)'};${done?'opacity:0.45;':''}">
+        <div class="check-box ${done?'done':''}" onclick="toggleCheck('${acc}','${d.id}')">${done?'✓':''}</div>
+        <div class="dec-icon">${d.icon}</div>
+        <div class="dec-body">
+          <div class="dec-title">
+            ${d.title}
+            ${d.mla?`<span style="font-size:10px;color:var(--text3);margin-left:6px;">${d.mla}</span>`:''}
+          </div>
+          <div class="dec-detail">${d.detail}</div>
+          ${d.campaign?`<div style="font-size:10px;color:var(--text3);margin-top:3px;">📁 ${d.campaign}</div>`:''}
+        </div>
+        <div class="dec-action"><span class="tag ${tagCls[d.type]||'tb'}" style="white-space:nowrap;">${d.action}</span></div>
+      </div>`;
+    }).join('');
+  }
+  $(`dec-checklist-${acc}`).style.display='block';
+  renderChecklist(acc);
+}
+
+function toggleCheck(acc,id){
+  if(!checklist[acc])checklist[acc]={};
+  checklist[acc][id]=!checklist[acc][id];
+  if(!checklist[acc][id])delete checklist[acc][id];
+  localStorage.setItem(`maraio_checklist_${acc==='maraio'?'m':'m2'}`,JSON.stringify(checklist[acc]));
+  renderDecTabForAcc(acc);
+}
+
+function clearChecklist(acc){
+  checklist[acc]={};
+  localStorage.setItem(`maraio_checklist_${acc==='maraio'?'m':'m2'}`,JSON.stringify({}));
+  renderDecTabForAcc(acc);
+}
+
+function renderChecklist(acc){
+  const body=$(`checklist-body-${acc}`);
+  if(!body)return;
+  const decisions=allDecisions[acc]||[];
+  const cl=checklist[acc]||{};
+  const done=decisions.filter(d=>cl[d.id]);
+  const pending=decisions.filter(d=>!cl[d.id]);
+  body.innerHTML=`
+    <div style="padding:8px 14px;font-size:11px;color:var(--text2);">✅ ${done.length} completadas · ⏳ ${pending.length} pendientes</div>
+    <div style="height:4px;background:var(--border);margin:0 14px 8px;border-radius:2px;">
+      <div style="height:100%;background:var(--green);border-radius:2px;width:${decisions.length>0?((done.length/decisions.length)*100).toFixed(0):0}%;transition:width .3s;"></div>
+    </div>
+    ${done.map(d=>`<div style="padding:7px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(42,48,80,.3);">
+      <div class="check-box done" onclick="toggleCheck('${acc}','${d.id}')" style="width:14px;height:14px;font-size:9px;">✓</div>
+      <span style="font-size:12px;color:var(--text2);text-decoration:line-through;flex:1;">${d.title}</span>
+      <span class="tag tg" style="font-size:10px;">${d.action}</span>
+    </div>`).join('')}`;
+}
+
+function renderCalendarForAcc(acc){
+  const cont=$(`dec-content-${acc}`);
+  const today=new Date();
+  const d7=new Date(today);d7.setDate(today.getDate()+7);
+  const d14=new Date(today);d14.setDate(today.getDate()+14);
+  const decisions=allDecisions[acc]||[];
+  const cl=checklist[acc]||{};
+  const doneCount=decisions.filter(d=>cl[d.id]).length;
+  cont.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+      <div class="mc"><div class="mlb">Pendientes</div><div class="mv dn">${decisions.length-doneCount}</div><div class="ms">${acc}</div></div>
+      <div class="mc"><div class="mlb">Completadas</div><div class="mv up">${doneCount}</div><div class="ms">de ${decisions.length}</div></div>
+      <div class="mc"><div class="mlb">Próxima revisión</div><div class="mv" style="font-size:15px;">${d7.toLocaleDateString('es-AR')}</div><div class="ms">en 7 días</div></div>
+    </div>
+    <div class="tw"><div class="th"><h3>📅 Calendario — ${acc}</h3></div>
+    ${[
+      {label:'Hoy — '+today.toLocaleDateString('es-AR'),desc:`Ejecutar urgentes de ${acc}: pausar anuncios críticos, resolver conflictos SKU`,color:'var(--red)'},
+      {label:'En 2 días — '+new Date(today.getTime()+2*86400000).toLocaleDateString('es-AR'),desc:`Verificar resultados de cambios de ROAS en ${acc}. ¿Mejoró el ROAS real?`,color:'var(--yellow)'},
+      {label:'Próxima semana — '+d7.toLocaleDateString('es-AR'),desc:`Revisión completa de ${acc}: descargar nuevo reporte de ML Ads, cargar y recalcular.`,color:'var(--green)'},
+      {label:'En 2 semanas — '+d14.toLocaleDateString('es-AR'),desc:`Evaluar candidatos para agregar a publicidad en ${acc}. Verificar sin conflictos de SKU.`,color:'var(--accent)'},
+    ].map(ev=>`<div style="padding:13px 14px;border-bottom:1px solid rgba(42,48,80,.4);display:flex;gap:10px;align-items:flex-start;">
+      <div style="width:3px;border-radius:2px;background:${ev.color};align-self:stretch;flex-shrink:0;"></div>
+      <div><div style="font-weight:600;font-size:13px;margin-bottom:3px;">${ev.label}</div><div style="font-size:12px;color:var(--text2);">${ev.desc}</div></div>
+    </div>`).join('')}
+    </div>`;
+}
+
+// ── CHAT ──────────────────────────────────────────────────────
+let learnedContent=[];
+
+async function learnFromUrl(){
+  const urlInput=$('chat-url-input');
+  const url=urlInput.value.trim();
+  if(!url){toast('Pegá una URL primero','error');return;}
+  const loadEl=$('url-loading');loadEl.style.display='block';
+  try{
+    // Ask the AI to fetch and summarize the URL
+    const r=await fetch(`${API}/api/chat`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        messages:[{role:'user',content:`Leé y resumí el contenido de esta URL de Mercado Libre para aprender sobre Product Ads: ${url}. Extraé los puntos clave sobre cómo funciona la publicidad, ROAS, presupuesto, y cualquier cambio reciente. Respondé en español con un resumen estructurado.`}],
+        context:{url,task:'learn'}
+      })
+    });
+    const d=await r.json();
+    const summary=d.response||'No se pudo leer el contenido.';
+    learnedContent.push({url,summary,date:new Date().toLocaleDateString('es-AR')});
+    loadEl.style.display='none';
+    urlInput.value='';
+    addMsg('ai',`✅ Aprendí de ${url}:\n\n${summary}`);
+    toast('Contenido aprendido y disponible para consultas','success');
+  }catch(e){
+    loadEl.style.display='none';
+    toast('Error al leer la URL: '+e.message,'error');
+  }
+}
+
+function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+
+async function sendChat(){
+  const input=$('chat-input');const msg=input.value.trim();if(!msg)return;
+  input.value='';$('chat-send').disabled=true;
+  addMsg('user',msg);S.chatHistory.push({role:'user',content:msg});
+  const typing=addMsg('ai','...',true);
+  const allAds=[...S.ads.maraio,...S.ads.maraio2];
+
+  // Build campaign summary for context
+  const campSummary=[];
+  ['maraio','maraio2'].forEach(acc=>{
+    const stats=getCampaignStats(acc);
+    const shared=detectSharedBudget(acc);
+    Object.values(stats).forEach(c=>{
+      campSummary.push({account:acc,campaign:c.name,roas:Math.round(c.roas*10)/10,spend:Math.round(c.spend),revenue:Math.round(c.revenue),activeAds:c.activeAds.length,sharedBudget:shared});
+    });
+  });
+
+  const ctx={
+    accounts:{maraio:{connected:S.accounts.maraio.connected},maraio2:{connected:S.accounts.maraio2.connected}},
+    campaigns:campSummary,
+    totalListings:allListings.length,
+    conflicts:countConflicts(),
+    learnedContent:learnedContent.map(l=>({url:l.url,summary:l.summary.substring(0,500)})),
+    mlAdsRules:{
+      roasAdjustment:'Siempre por campaña, incrementos de 1-2x, esperar 7-10 días entre cambios',
+      budgetAdjustment:'Por campaña o compartido entre todas. Ajustar en ±30%',
+      noAcosTarget:'El ACOS objetivo ya no existe en ML Ads (migrado a ROAS desde oct 2025)',
+      reviewWindow:'Leer resultados después de 7 días mínimo, confiable a los 28 días',
+      skuRule:'El mismo SKU no puede estar activo en maraio Y maraio2 simultáneamente'
+    }
+  };
+
+  try{
+    const r=await fetch(`${API}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:S.chatHistory,context:ctx})});
+    const d=await r.json();typing.remove();
+    const reply=d.response||'Sin respuesta';addMsg('ai',reply);S.chatHistory.push({role:'assistant',content:reply});
+
+    // Parse if AI suggested adding an item — look for MLA codes in reply
+    const mlaMatches=reply.match(/MLA\d{8,12}/g);
+    if(mlaMatches&&reply.toLowerCase().includes('agreg')){
+      mlaMatches.forEach(mla=>{
+        // Find which account this MLA belongs to
+        ['maraio','maraio2'].forEach(acc=>{
+          const listing=allListings.find(i=>i.id===mla&&i.account===acc);
+          if(listing&&!S.chatAddItems[acc].find(i=>i.mla===mla)){
+            S.chatAddItems[acc].push({mla,title:listing.title||mla,detail:`Sugerido por el asistente. Precio: $${listing.price?.toLocaleString('es-AR')} · Stock: ${listing.available_quantity}u.`});
+            toast(`💬 "${listing.title?.substring(0,30)}" agregado a la lista de ${acc}`,'success');
+          }
+        });
+      });
+      buildDecisions();
+    }
+  }catch(e){typing.remove();addMsg('ai','Error al conectar con el asistente. Verificá que el servidor esté corriendo.');}
+  $('chat-send').disabled=false;
+}
+
+function addMsg(role,text){const c=$('chat-msgs');const el=document.createElement('div');el.className=`msg ${role}`;el.textContent=text;c.appendChild(el);c.scrollTop=c.scrollHeight;return el;}
+
+// ── PRICING ───────────────────────────────────────────────────
+let pTab=40;
+function showPTab(t){pTab=t;$('ptab-40').className='btn btn-sm '+(t===40?'btn-p':'btn-s');$('ptab-49').className='btn btn-sm '+(t===49?'btn-p':'btn-s');$('pc-break-40').style.display=t===40?'block':'none';$('pc-break-49').style.display=t===49?'block':'none';}
+function calcP(){
+  const costo=parseFloat($('pc-cost').value)||15000;
+  const impPct=parseFloat($('pc-iibb').value)||3;
+  function calcFijo(p){if(p>=33000)return 0;if(p<=15000)return 1095;if(p<=25000)return 2190;return 2810;}
+  function calcForPct(pct){
+    const costoBase=costo+400;const gananciaDeseada=Math.max(costoBase*pct,7000);const usaMinimo=costoBase*pct<7000;
+    let precio=costoBase*2.5;
+    for(let i=0;i<25;i++){
+      const ant=precio;const sinIVA=precio/1.21;const iva=precio*0.1736;const com=sinIVA*0.13;const ivaCom=com*0.21;const fijo=calcFijo(precio);const envio=precio>=33000?8000:0;const imp=sinIVA*(impPct/100);
+      precio=costoBase+gananciaDeseada+iva+com+ivaCom+fijo+envio+imp;if(Math.abs(precio-ant)<1)break;
+    }
+    precio=Math.ceil(precio/10)*10;
+    const sinIVA=precio/1.21;const iva=precio*0.1736;const com=sinIVA*0.13;const ivaCom=com*0.21;const fijo=calcFijo(precio);const envio=precio>=33000?8000:0;const imp=sinIVA*(impPct/100);
+    const totalCostos=costo+400+iva+com+ivaCom+fijo+envio+imp;const gananciaReal=precio-totalCostos;
+    return{precio,costoBase,gananciaDeseada,gananciaReal,usaMinimo,sinIVA,iva,com,ivaCom,fijo,envio,imp,totalCostos};
+  }
+  const r40=calcForPct(0.40);const r49=calcForPct(0.49);
+  $('pc-r40').textContent='$'+Math.round(r40.precio).toLocaleString('es-AR');
+  $('pc-r49').textContent='$'+Math.round(r49.precio).toLocaleString('es-AR');
+  $('pc-p40-label').textContent=`Ganancia: $${Math.round(r40.gananciaReal).toLocaleString('es-AR')} (${((r40.gananciaReal/r40.precio)*100).toFixed(1)}%)`;
+  $('pc-p49-label').textContent=`Ganancia: $${Math.round(r49.gananciaReal).toLocaleString('es-AR')} (${((r49.gananciaReal/r49.precio)*100).toFixed(1)}%)`;
+  $('pc-p40-badge').innerHTML=r40.usaMinimo?'<span class="tag ty">Mínimo $7.000</span>':'<span class="tag tg">40% real</span>';
+  $('pc-p49-badge').innerHTML=r49.usaMinimo?'<span class="tag ty">Mínimo $7.000</span>':'<span class="tag tg">49% real</span>';
+  function breakdown(r,pct){
+    return`<table style="width:100%;border-collapse:collapse;">
+      ${[['Costo del producto','$'+Math.round(costo).toLocaleString('es-AR'),''],['Embalaje','$400',''],['IVA incluido (17.36%)','$'+Math.round(r.iva).toLocaleString('es-AR'),'iva'],['Comisión ML (13% sin IVA)','$'+Math.round(r.com).toLocaleString('es-AR'),''],['IVA sobre comisión (21%)','$'+Math.round(r.ivaCom).toLocaleString('es-AR'),''],['Costo fijo ML','$'+r.fijo.toLocaleString('es-AR'),''],['Envío','$'+r.envio.toLocaleString('es-AR'),''],['IIBB ('+impPct+'%)','$'+Math.round(r.imp).toLocaleString('es-AR'),''],['— Total costos','$'+Math.round(r.totalCostos).toLocaleString('es-AR'),'total'],['Ganancia neta','$'+Math.round(r.gananciaReal).toLocaleString('es-AR')+' ('+((r.gananciaReal/r.precio)*100).toFixed(1)+'%)','ganancia']].map(([l,v,t])=>`<tr>
+        <td style="padding:5px 0;font-size:12px;color:${t==='total'||t==='ganancia'?'var(--text)':'var(--text2)'};font-weight:${t==='total'||t==='ganancia'?'600':'400'};">${l}</td>
+        <td style="padding:5px 0;font-size:12px;text-align:right;font-weight:${t==='ganancia'?'700':'400'};color:${t==='iva'?'var(--yellow)':t==='ganancia'?'var(--green)':t==='total'?'var(--text)':'var(--text2)'};">${v}${t==='iva'?'<span style="font-size:9px;color:var(--text3);margin-left:3px;">incluido en precio</span>':''}</td>
+      </tr>`).join('')}
+    </table>`;
+  }
+  $('pc-break-40').innerHTML=breakdown(r40,40);$('pc-break-49').innerHTML=breakdown(r49,49);
+}
+
+// ── ALERTS ────────────────────────────────────────────────────
+function buildAlerts(){
+  const cont=$('alerts-list');const al=[];
+  Object.values(skuMap).filter(s=>s.maraio?.status==='active'&&s.maraio2?.status==='active').forEach(s=>{al.push({type:'ad',icon:'🚨',title:`Conflicto SKU: ${s.sku}`,sub:`Activo en maraio Y maraio2 simultáneamente`});});
+  allListings.filter(i=>i.available_quantity===0).forEach(i=>al.push({type:'ad',icon:'🚫',title:`Sin stock: ${i.title?.substring(0,40)}`,sub:`${i.account} · SKU ${i.sku||i.id}`}));
+  allListings.filter(i=>i.available_quantity>0&&i.available_quantity<=3).forEach(i=>al.push({type:'aw',icon:'📦',title:`Stock bajo: ${i.title?.substring(0,40)}`,sub:`${i.available_quantity} unidades · ${i.account}`}));
+  const allAds=[...S.ads.maraio,...S.ads.maraio2];
+  allAds.filter(c=>c.acos>15).forEach(c=>al.push({type:'ad',icon:'💸',title:`ACOS crítico: ${c.title?.substring(0,35)||c.mla}`,sub:`${c.acos.toFixed(1)}% · ${c.account} · límite 10%`}));
+  allAds.filter(c=>c.roas!==null&&c.roas<5&&(c.spend||0)>0).forEach(c=>al.push({type:'aw',icon:'📉',title:`ROAS bajo: ${c.title?.substring(0,35)||c.mla}`,sub:`${c.roas.toFixed(1)}x · ${c.account}`}));
+  if(!al.length){cont.innerHTML='<div class="es"><div class="ei">✅</div><h3>Sin alertas</h3><p>Todo en orden</p></div>';return;}
+  cont.innerHTML=al.map(a=>`<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${a.type==='ad'?'var(--red)':'var(--yellow)'};border-radius:7px;padding:10px 14px;display:flex;align-items:flex-start;gap:10px;margin-bottom:7px;">
+    <span style="font-size:14px;">${a.icon}</span>
+    <div><div style="font-size:13px;font-weight:600;">${a.title}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;">${a.sub}</div></div>
+  </div>`).join('');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0]+'T00:00:00.000-03:00';}
+
+// ── INIT ──────────────────────────────────────────────────────
+checkStatus().then(()=>{
+  const any=S.accounts.maraio.connected||S.accounts.maraio2.connected;
+  nav(any?'overview':'connect');
+  selAcc(S.accounts.maraio.connected?'maraio':'maraio2');
+  calcP();showPTab(40);
+  showDecTab('maraio','roas');
+  showDecTab('maraio2','roas');
+  setDecAcc('maraio');
+  setAdsAcc('maraio');
+});
+</script>
+</body>
+</html>
