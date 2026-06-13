@@ -1103,6 +1103,8 @@ function getCampaignStats(acc){
   const campMap={};
   S.ads[acc].forEach(ad=>{
     const c=ad.campaign||'Sin campaña';
+const campInfo=S.campData[acc]?.[c];
+if(campInfo&&!campInfo.isActive) return;
     if(!campMap[c])campMap[c]={name:c,account:acc,ads:[],spend:0,revenue:0,impressions:0,clicks:0,direct_sales:0,total_sales:0,budgets:[]};
     campMap[c].ads.push(ad);
     campMap[c].spend+=(ad.spend||0);
