@@ -766,7 +766,7 @@ function readXLSXWithLib(file,acc){
       const dataRows=raw.slice(headerRow+1).filter(r=>r.some(c=>c!==''));
       const text=[headers.join('\t'),...dataRows.map(r=>r.map(c=>c===null||c===undefined?'':String(c)).join('\t'))].join('\n');
 
-      if(isCampaignsReport){
+      window._lastCampBuffer=e.target.result;if(isCampaignsReport){
         parseCampaignsReport(text,file.name,acc);
       } else {
         parseMLReport(text,file.name,'tsv',acc);
@@ -779,54 +779,50 @@ function readXLSXWithLib(file,acc){
 const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
 
 function parseCampaignsReport(text,filename,acc){
-  const lines=text.split('\n').filter(l=>l.trim());
-  if(lines.length<2){toast('Reporte de campañas vacío: '+filename,'error');return;}
-  const headers=lines[0].split('\t').map(h=>h.trim().toLowerCase());
-  const nameIdx=headers.findIndex(h=>h.includes('nombre'));
-  const statusIdx=headers.findIndex(h=>h.includes('estado'));
-  const budgetIdx=headers.findIndex(h=>h.includes('presupuesto'));
-  const roasObjIdx=headers.findIndex(h=>h.includes('roas objetivo')||h.includes('roas_objetivo'));
-  const impressionsIdx=headers.findIndex(h=>h.includes('impresiones'));
-  const impWonIdx=headers.findIndex(h=>h.includes('ganadas'));
-
-  S.campData[acc]={};
-  for(const line of lines.slice(1)){
-    const vals=line.split('\t').map(v=>v.trim());
-    if(!vals[nameIdx]) continue;
-    const name=vals[nameIdx];
-    const status=vals[statusIdx]||'';
-    const budget=parseFloat(vals[budgetIdx])||0;
-    const roasObj=vals[roasObjIdx]&&vals[roasObjIdx]!=='-'?parseFloat(vals[roasObjIdx])||null:null;
-    const impressions=parseFloat(vals[impressionsIdx])||0;
-    const impWon=parseFloat(vals[impWonIdx])||0;
-    S.campData[acc][name]={
-      name,
-      status:status.trim(), // 'Activa' or 'Pausada'
-      isActive:status.toLowerCase().includes('activa')||status.toLowerCase().includes('activo'),
-      budget,
-      roasObj,
-      impressions,
-      impWon
-    };
-    // Auto-set ROAS target if it comes from ML and user hasn't set it manually
-    if(roasObj){
-      const key=`${acc}_${name}`;
-      if(!S.roasTargets[key]){
-        S.roasTargets[key]=roasObj;
-        localStorage.setItem('maraio_roas_targets',JSON.stringify(S.roasTargets));
+  try{
+    const wb=XLSX.read(window._lastCampBuffer,{type:'array'});
+    const sheetName=wb.SheetNames.find(n=>n.toLowerCase().includes('campa'))||wb.SheetNames[0];
+    const ws=wb.Sheets[sheetName];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(!rows||rows.length<2){toast('Reporte de campañas vacío: '+filename,'error');return;}
+    let headerIdx=0;
+    for(let i=0;i<Math.min(rows.length,5);i++){
+      const r=rows[i].join('|').toLowerCase();
+      if(r.includes('nombre')||r.includes('estado')){headerIdx=i;break;}
+    }
+    const headers=rows[headerIdx].map(h=>String(h).trim().toLowerCase());
+    const nameIdx=headers.findIndex(h=>h.includes('nombre'));
+    const statusIdx=headers.findIndex(h=>h.includes('estado'));
+    const budgetIdx=headers.findIndex(h=>h.includes('presupuesto'));
+    const roasObjIdx=headers.findIndex(h=>h.includes('roas'));
+    const impressionsIdx=headers.findIndex(h=>h.includes('impresiones'));
+    const impWonIdx=headers.findIndex(h=>h.includes('ganadas'));
+    S.campData[acc]={};
+    for(let i=headerIdx+1;i<rows.length;i++){
+      const vals=rows[i];
+      const name=String(vals[nameIdx]||'').trim();
+      if(!name)continue;
+      const status=String(vals[statusIdx]||'').trim();
+      const budget=parseFloat(String(vals[budgetIdx]||'0').replace(/[^0-9.,]/g,'').replace(',','.'))||0;
+      const roasRaw=vals[roasObjIdx];
+      const roasObj=roasRaw&&String(roasRaw).trim()!=='-'?parseFloat(String(roasRaw).replace(/[^0-9.,]/g,'').replace(',','.'))||null:null;
+      const impressions=parseFloat(String(vals[impressionsIdx]||'0').replace(/[^0-9.,]/g,''))||0;
+      const impWon=parseFloat(String(vals[impWonIdx]||'0').replace(/[^0-9.,]/g,''))||0;
+      S.campData[acc][name]={
+        name,status,
+        isActive:status.toLowerCase().includes('activa')||status.toLowerCase().includes('activo'),
+        budget,roasObj,impressions,impWon
+      };
+      if(roasObj){
+        const key=`${acc}_${name}`;
+        if(!S.roasTargets[key]){
+          S.roasTargets[key]=roasObj;
+          localStorage.setItem('maraio_roas_targets',JSON.stringify(S.roasTargets));
+        }
       }
     }
-  }
-  const count=Object.keys(S.campData[acc]).length;
-  const active=Object.values(S.campData[acc]).filter(c=>c.isActive).length;
-  // Track loaded file
-  S.loadedFiles[acc]=S.loadedFiles[acc].filter(f=>f.type!=='campaigns');
-  S.loadedFiles[acc].push({name:filename,date:new Date().toLocaleString('es-AR'),type:'campaigns',info:`${active} activas de ${count}`});
-  renderFilesList(acc);
-  toast(`✅ Reporte de campañas de ${acc}: ${active} activas de ${count} total`,'success');
-  renderAdsForAccount(acc);
-  buildDecisions();
-}
+    const count=Object.keys(S.campData[acc]).length;
+    
 
 function parseMLReport(text,filename,format,acc){
   const delim=format==='tsv'?'\t':(text.split('\n')[0].split('\t').length>3?'\t':text.split('\n')[0].split(';').length>text.split('\n')[0].split(',').length?';':',');
