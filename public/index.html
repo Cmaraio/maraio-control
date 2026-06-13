@@ -961,7 +961,7 @@ function renderAdsForAccount(acc){
   const activeCamps=Object.entries(campMap).filter(([campName,campAds])=>{
     const campInfo=S.campData[acc]?.[campName];
     if(campInfo) return campInfo.isActive; // trust campaigns report
-    return campAds.some(a=>a.status==='Activo'); // fallback to ad-level
+return false; // no campaign report = don't show
   });
   
   if(!activeCamps.length){
