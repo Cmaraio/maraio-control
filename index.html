@@ -778,7 +778,7 @@ function readXLSXWithLib(file,acc){
 
 const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
 
-function parseCampaignsReport(text,filename,acc){
+function parseCampaignsReport(text,filename,acc){console.log('CAMP START',filename,text.length);
   const lines=text.split('\n').filter(l=>l.trim());
   if(lines.length<2){toast('Reporte de campañas vacío: '+filename,'error');return;}
   const headers=lines[0].split('\t').map(h=>h.trim().toLowerCase());
@@ -1651,3 +1651,4 @@ checkStatus().then(async ()=>{
 </script>
 </body>
 </html>
+
