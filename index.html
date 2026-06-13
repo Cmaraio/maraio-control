@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -766,7 +766,7 @@ function readXLSXWithLib(file,acc){
       const dataRows=raw.slice(headerRow+1).filter(r=>r.some(c=>c!==''));
       const text=[headers.join('\t'),...dataRows.map(r=>r.map(c=>c===null||c===undefined?'':String(c)).join('\t'))].join('\n');
 
-      if(isCampaignsReport){
+      window._lastCampBuffer=e.target.result;if(isCampaignsReport){
         parseCampaignsReport(text,file.name,acc);
       } else {
         parseMLReport(text,file.name,'tsv',acc);
