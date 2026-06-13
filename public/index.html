@@ -821,7 +821,18 @@ function parseCampaignsReport(text,filename,acc){
         }
       }
     }
-    const count=Object.keys(S.campData[acc]).length;
+    const count=Object.keys(S.campData[acc]).length;const active=Object.values(S.campData[acc]).filter(c=>c.isActive).length;
+    S.loadedFiles[acc]=S.loadedFiles[acc].filter(f=>f.type!=='campaigns');
+    S.loadedFiles[acc].push({name:filename,date:new Date().toLocaleString('es-AR'),type:'campaigns',info:`${active} activas de ${count}`});
+    renderFilesList(acc);
+    toast(`✅ Reporte de campañas de ${acc}: ${active} activas de ${count} total`,'success');
+    renderAdsForAccount(acc);
+    buildDecisions();
+  }catch(err){
+    console.error('[CAMP] Error:',err);
+    toast('Error parseando campañas: '+err.message,'error');
+  }
+}
     
 
 function parseMLReport(text,filename,format,acc){
