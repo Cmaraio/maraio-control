@@ -781,44 +781,45 @@ const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anu
 function parseCampaignsReport(text,filename,acc){
   const lines=text.split('\n').filter(l=>l.trim());
   if(lines.length<2){toast('Reporte de campañas vacío: '+filename,'error');return;}
-  const headers=lines[0].split('\t').map(h=>h.trim().replace(/\n/g,' ').toLowerCase());
-  
-  // Flexible header matching
-  const nameIdx=headers.findIndex(h=>h.includes('nombre de campa')||h==='campaña'||h.includes('nombre'));
-  const statusIdx=headers.findIndex(h=>h==='estado'||h.includes('estado'));
+  const headers=lines[0].split('\t').map(h=>h.trim().toLowerCase());
+  const nameIdx=headers.findIndex(h=>h.includes('nombre'));
+  const statusIdx=headers.findIndex(h=>h.includes('estado'));
   const budgetIdx=headers.findIndex(h=>h.includes('presupuesto'));
-  const roasObjIdx=headers.findIndex(h=>h.includes('roas objetivo'));
-  const impressionsIdx=headers.findIndex(h=>h==='impresiones'||h.includes('impresiones'));
-
-  // Fallback: if nameIdx not found, use column 0 (ML always puts name first)
-  const nIdx=nameIdx>=0?nameIdx:0;
-  const sIdx=statusIdx>=0?statusIdx:1;
-  const bIdx=budgetIdx>=0?budgetIdx:2;
-  const rIdx=roasObjIdx>=0?roasObjIdx:3;
+  const roasObjIdx=headers.findIndex(h=>h.includes('roas objetivo')||h.includes('roas_objetivo'));
+  const impressionsIdx=headers.findIndex(h=>h.includes('impresiones'));
+  const impWonIdx=headers.findIndex(h=>h.includes('ganadas'));
 
   S.campData[acc]={};
   for(const line of lines.slice(1)){
     const vals=line.split('\t').map(v=>v.trim());
-    if(!vals[nIdx]||vals[nIdx]==='-') continue;
-    const name=vals[nIdx];
-    const status=vals[sIdx]||'';
-    const budget=parseFloat(String(vals[bIdx]||'').replace(/[^0-9.]/g,''))||0;
-    const roasObjRaw=vals[rIdx]||'';
-    const roasObj=roasObjRaw&&roasObjRaw!=='-'&&roasObjRaw!=='0'?parseFloat(roasObjRaw)||null:null;
-    const impressions=vals[impressionsIdx]?parseFloat(String(vals[impressionsIdx]).replace(/[^0-9.]/g,''))||0:0;
+    if(!vals[nameIdx]) continue;
+    const name=vals[nameIdx];
+    const status=vals[statusIdx]||'';
+    const budget=parseFloat(vals[budgetIdx])||0;
+    const roasObj=vals[roasObjIdx]&&vals[roasObjIdx]!=='-'?parseFloat(vals[roasObjIdx])||null:null;
+    const impressions=parseFloat(vals[impressionsIdx])||0;
+    const impWon=parseFloat(vals[impWonIdx])||0;
     S.campData[acc][name]={
       name,
-      status:status.trim(),
+      status:status.trim(), // 'Activa' or 'Pausada'
       isActive:status.toLowerCase().includes('activa')||status.toLowerCase().includes('activo'),
-      budget,roasObj,impressions
+      budget,
+      roasObj,
+      impressions,
+      impWon
     };
+    // Auto-set ROAS target if it comes from ML and user hasn't set it manually
     if(roasObj){
       const key=`${acc}_${name}`;
-      if(!S.roasTargets[key]){S.roasTargets[key]=roasObj;localStorage.setItem('maraio_roas_targets',JSON.stringify(S.roasTargets));}
+      if(!S.roasTargets[key]){
+        S.roasTargets[key]=roasObj;
+        localStorage.setItem('maraio_roas_targets',JSON.stringify(S.roasTargets));
+      }
     }
   }
   const count=Object.keys(S.campData[acc]).length;
   const active=Object.values(S.campData[acc]).filter(c=>c.isActive).length;
+  // Track loaded file
   S.loadedFiles[acc]=S.loadedFiles[acc].filter(f=>f.type!=='campaigns');
   S.loadedFiles[acc].push({name:filename,date:new Date().toLocaleString('es-AR'),type:'campaigns',info:`${active} activas de ${count}`});
   renderFilesList(acc);
