@@ -1316,7 +1316,30 @@ Object.values(mlaMap).forEach(pub=>{
       priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'noconv_'+adId});
   // ACOS más del doble del límite → PAUSAR URGENTE
   } else if(pubAcos!==null&&pubAcos>acosLimit*2&&pub.spend>200){
-    allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',
+    const replacement=suggestReplacement(acc,pub.mla);
+    const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:'';
+    allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'PAUSAR URGENTE',
+      title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). $${Math.round(pub.spend).toLocaleString('es-AR')} invertidos → $${Math.round(pub.sales).toLocaleString('es-AR')} en ventas. ROAS ${pubRoas?.toFixed(1)||'—'}x.${replDetail}`,
+      priority:0,account:acc,mla:pub.mla,campaign:pub.campaign,id:'pause_acos_'+adId});
+  // ACOS sobre el límite → bajar ROAS objetivo de la campaña
+  } else if(pubAcos!==null&&pubAcos>acosLimit&&pub.spend>100){
+    allDecisions[acc].push({icon:'📉',type:'warn',category:'pause',action:'ACOS ALTO',
+      title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% sobre el límite (${acosLimit}%). En ML Ads → Campañas → "${pub.campaign}" → bajá el ROAS objetivo para mejorar eficiencia. ROAS actual: ${pubRoas?.toFixed(1)||'—'}x.`,
+      priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'acos_high_'+adId});
+  // ROAS muy bajo con inversión
+  } else if(pubRoas!==null&&pubRoas<5&&pub.spend>200&&pub.sales>0){
+    const replacement=suggestReplacement(acc,pub.mla);
+    const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:' Sin candidatos sin conflicto de SKU.';
+    allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'ROAS MUY BAJO',
+      title:pub.title,detail:`ROAS ${pubRoas.toFixed(1)}x — muy bajo. $${Math.round(pub.spend).toLocaleString('es-AR')} invertidos en "${pub.campaign}".${replDetail}`,
+      priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'lowroas_'+adId});
+  // Muchas impresiones, pocos clicks → problema de publicación
+  } else if(pub.impressions>10000&&pub.clicks<20){
+    allDecisions[acc].push({icon:'🖼️',type:'warn',category:'pause',action:'CTR MUY BAJO',
+      title:pub.title,detail:`${pub.impressions.toLocaleString('es-AR')} impresiones y solo ${pub.clicks} clicks (CTR ${((pub.clicks/pub.impressions)*100).toFixed(2)}%) en "${pub.campaign}". Mejorá título, foto principal y precio.`,
+      priority:2,account:acc,mla:pub.mla,campaign:pub.campaign,id:'ctr_'+adId});
+  }
+});
 
       // Stock issues
       camp.activeAds.forEach(ad=>{
