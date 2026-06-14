@@ -134,6 +134,32 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
 .bar{width:100%;border-radius:3px 3px 0 0;cursor:pointer;}
 .bar:hover{opacity:.8;}
 .bl{font-size:9px;color:var(--text3);}
+/* Calendar */
+.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - 160px);background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.cal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.cal-title{font-size:16px;font-weight:600;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);flex:1;overflow-y:auto;}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);}
+.cal-dow > div{padding:8px;text-align:center;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;}
+.cal-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;min-height:90px;display:flex;flex-direction:column;gap:4px;}
+.cal-cell.other-month{background:rgba(0,0,0,.15);opacity:.6;}
+.cal-daynum{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:2px;text-align:right;}
+.cal-cell.today .cal-daynum{color:var(--accent);}
+.cal-evt{font-size:10px;padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .15s;}
+.cal-evt:hover{opacity:.8;}
+.cal-evt.past{opacity:.4;filter:grayscale(100%);}
+.cal-evt.eblue{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid rgba(59,130,246,.4);}
+.cal-evt.eyellow{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.4);}
+.cal-evt.egreen{background:rgba(34,197,94,.2);color:#4ade80;border:1px solid rgba(34,197,94,.4);}
+.cal-evt.eorange{background:rgba(249,115,22,.2);color:#fb923c;border:1px solid rgba(249,115,22,.4);}
+.cal-evt.egray{background:rgba(255,255,255,.1);color:var(--text2);border:1px solid rgba(255,255,255,.2);}
+.cal-more{font-size:10px;color:var(--accent);cursor:pointer;text-align:center;padding:2px;margin-top:auto;}
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:360px;max-width:90%;box-shadow:0 10px 25px rgba(0,0,0,.5);animation:sIn .2s ease;}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-body{padding:18px;}
 @media(max-width:900px){.mg{grid-template-columns:repeat(2,1fr);}}
 </style>
 </head>
@@ -163,6 +189,7 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
   <div class="nav-sec">Publicidad</div>
   <div class="nav-item" onclick="nav('ads')" id="nv-ads"><span class="nav-icon">📈</span>Campañas</div>
   <div class="nav-item" onclick="nav('decisions')" id="nv-decisions"><span class="nav-icon">🎯</span>Recomendaciones</div>
+  <div class="nav-item" onclick="nav('calendar')" id="nv-calendar"><span class="nav-icon">📅</span>Calendario</div>
   <div class="nav-sec">Herramientas</div>
   <div class="nav-item" onclick="nav('chat')" id="nv-chat"><span class="nav-icon">💬</span>Asistente IA</div>
   <div class="nav-item" onclick="nav('pricing')" id="nv-pricing"><span class="nav-icon">🧮</span>Calculadora</div>
@@ -331,7 +358,6 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
       <button class="btn btn-s btn-sm" id="dtab-maraio-budget" onclick="showDecTab('maraio','budget')">💰 Presupuesto</button>
       <button class="btn btn-s btn-sm" id="dtab-maraio-pause" onclick="showDecTab('maraio','pause')">⏸ Pausar</button>
       <button class="btn btn-s btn-sm" id="dtab-maraio-add" onclick="showDecTab('maraio','add')">➕ Agregar</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio-calendar" onclick="showDecTab('maraio','calendar')">📅 Calendario</button>
     </div>
     <div id="dec-content-maraio"><div class="es"><div class="ei">🎯</div><h3>Sin datos de maraio</h3><p>Cargá el reporte de ML Ads de maraio en Campañas</p></div></div>
     <div id="dec-checklist-maraio" style="display:none;margin-top:14px;">
@@ -349,7 +375,6 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
       <button class="btn btn-s btn-sm" id="dtab-maraio2-budget" onclick="showDecTab('maraio2','budget')">💰 Presupuesto</button>
       <button class="btn btn-s btn-sm" id="dtab-maraio2-pause" onclick="showDecTab('maraio2','pause')">⏸ Pausar</button>
       <button class="btn btn-s btn-sm" id="dtab-maraio2-add" onclick="showDecTab('maraio2','add')">➕ Agregar</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio2-calendar" onclick="showDecTab('maraio2','calendar')">📅 Calendario</button>
     </div>
     <div id="dec-content-maraio2"><div class="es"><div class="ei">🎯</div><h3>Sin datos de maraio2</h3><p>Cargá el reporte de ML Ads de maraio2 en Campañas</p></div></div>
     <div id="dec-checklist-maraio2" style="display:none;margin-top:14px;">
@@ -357,6 +382,38 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
         <div class="th"><h3>✅ Checklist — maraio2</h3><button class="btn btn-s btn-sm" onclick="clearChecklist('maraio2')">Limpiar tildados</button></div>
         <div id="checklist-body-maraio2" style="padding:4px 0;"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CALENDAR ═══ -->
+<div class="screen" id="sc-calendar">
+  <div class="ph"><div><h1>Calendario de Eventos</h1><p>Fechas de revisión automáticas según actividad</p></div></div>
+  <div class="acctabs">
+    <button class="acctab active-m" id="caltab-maraio" onclick="setCalAcc('maraio')">● maraio</button>
+    <button class="acctab" id="caltab-maraio2" onclick="setCalAcc('maraio2')">● maraio2</button>
+  </div>
+  <div class="cal-wrap">
+    <div class="cal-head">
+      <button class="btn btn-s btn-sm" onclick="navMonth(-1)">◀ Mes anterior</button>
+      <div class="cal-title" id="cal-title-label"></div>
+      <button class="btn btn-s btn-sm" onclick="navMonth(1)">Mes siguiente ▶</button>
+    </div>
+    <div class="cal-dow">
+      <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+    </div>
+    <div class="cal-grid" id="cal-grid-body"></div>
+  </div>
+</div>
+
+<!-- Event Modal -->
+<div class="modal-overlay" id="evt-modal-bg" onclick="closeEvtModal()">
+  <div class="modal" id="evt-modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h3 style="font-size:14px;font-weight:600;" id="evt-title"></h3>
+      <button class="btn btn-s btn-sm" onclick="closeEvtModal()" style="padding:2px 8px;">✕</button>
+    </div>
+    <div class="modal-body" id="evt-detail" style="font-size:13px;line-height:1.5;color:var(--text2);">
     </div>
   </div>
 </div>
@@ -430,12 +487,14 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
 const API=''; // Vercel - uses relative paths
 let S={
   accounts:{maraio:{connected:false,userId:null},maraio2:{connected:false,userId:null}},
-  ovAcc:'maraio',salesAcc:'maraio',adsAcc:'maraio',decAcc:'maraio',pendingAuth:null,
+  ovAcc:'maraio',salesAcc:'maraio',adsAcc:'maraio',decAcc:'maraio',calAcc:'maraio',pendingAuth:null,
   ads:{maraio:[],maraio2:[]},
   campData:{maraio:{},maraio2:{}},
   loadedFiles:{maraio:[],maraio2:[]}, // track loaded files with name, date, type
   roasTargets:JSON.parse(localStorage.getItem('maraio_roas_targets')||'{}'),
   roasDates:JSON.parse(localStorage.getItem('maraio_roas_dates')||'{}'),
+  budgetDates:JSON.parse(localStorage.getItem('maraio_budget_dates')||'{}'),
+  addDates:JSON.parse(localStorage.getItem('maraio_add_dates')||'{}'),
   chatAddItems:{maraio:[],maraio2:[]},
   skuOverrides:{},chatHistory:[]
 };
@@ -1227,7 +1286,7 @@ function buildDecisions(){
         allDecisions[acc].push({icon:'⏳',type:'info',category:'roas',action:'EN APRENDIZAJE',
           title:`Campaña: ${camp.name}`,
           detail:`Cambiaste el ROAS recientemente. Período de aprendizaje hasta el ${dDate.toLocaleDateString('es-AR')}. No realices nuevos ajustes de ROAS.`,
-          priority:5,account:acc,campaign:camp.name,id:'roas_learn_'+campId});
+          priority:5,account:acc,campaign:camp.name,id:'roas_learn_'+campId, targetDate:dDate.getTime()});
       } else if(userTarget){
         // User told us the real target — give precise recommendation
         const ratio=currentRoas/userTarget;
@@ -1470,6 +1529,167 @@ function renderDecTabForAcc(acc){
   renderChecklist(acc);
 }
 
+function renderChecklist(acc){
+  const h=[];
+  if(!checklist[acc])checklist[acc]={};
+  Object.keys(checklist[acc]).forEach(id=>{
+    if(id==='__clear_all__')return;
+    const dec=allDecisions[acc]?.find(d=>d.id===id);
+    if(dec){
+      h.push(`<div style="font-size:11px;color:var(--text2);margin-bottom:4px;padding-left:4px;border-left:2px solid var(--border);">✅ ${dec.action}: ${dec.title?.substring(0,30)}</div>`);
+    }
+  });
+  $(`checklist-body-${acc}`).innerHTML=h.length?h.join(''):'<div style="font-size:11px;color:var(--text3);padding-left:4px;">No hay items tildados.</div>';
+}
+
+// ── CALENDAR LOGIC ──
+let calDate = new Date();
+function setCalAcc(acc){
+  S.calAcc=acc;
+  $('caltab-maraio').className='acctab'+(acc==='maraio'?' active-m':'');
+  $('caltab-maraio2').className='acctab'+(acc==='maraio2'?' active-m2':'');
+  renderCalendar();
+}
+function navMonth(dir){
+  calDate.setMonth(calDate.getMonth()+dir);
+  renderCalendar();
+}
+
+function getCalEvents(acc){
+  const evts=[];
+  // 1. ROAS learning period ends
+  Object.keys(S.roasDates).forEach(k=>{
+    if(k.startsWith(acc+'_')){
+      const d=new Date(S.roasDates[k]);
+      d.setDate(d.getDate()+15);
+      evts.push({date:d, title:`Revisar ROAS — ${k.split('_')[1]}`, color:'eblue', detail:`Finaliza el período de aprendizaje (15 días) desde el último cambio de ROAS en la campaña "${k.split('_')[1]}". Ya podés reevaluar la performance.`});
+    }
+  });
+  // 2. Budget reviews (7 days)
+  Object.keys(S.budgetDates).forEach(k=>{
+    if(k.startsWith(acc+'_')){
+      const d=new Date(S.budgetDates[k]);
+      d.setDate(d.getDate()+7);
+      evts.push({date:d, title:`Revisar presupuesto — ${k.split('_')[1]}`, color:'eorange', detail:`Revisión agendada a los 7 días de modificar el presupuesto de la campaña "${k.split('_')[1]}". Revisá si el ROAS mejoró.`});
+    }
+  });
+  // 3. Newly added items (15 days)
+  Object.keys(S.addDates).forEach(k=>{
+    if(k.startsWith(acc+'_')){
+      const d=new Date(S.addDates[k]);
+      d.setDate(d.getDate()+15);
+      evts.push({date:d, title:`Revisar nuevo — ${k.split('_')[1]}`, color:'egreen', detail:`Artículo ${k.split('_')[1]} fue agregado a una campaña hace 15 días. Revisar si está traccionando.`});
+    }
+  });
+  // 4. "EN REVISIÓN" from current decisions
+  (allDecisions[acc]||[]).forEach(dec=>{
+    if(dec.category==='pause' && dec.action==='EN REVISIÓN' && dec.targetDate){
+      evts.push({date:new Date(dec.targetDate), title:`Reevaluar — ${dec.title?.substring(0,25)}`, color:'eyellow', detail:dec.detail});
+    }
+  });
+  return evts;
+}
+
+window.currentEvts = []; // Store for modal
+function showEvtModal(idx){
+  const e=window.currentEvts[idx];
+  if(!e)return;
+  $('evt-title').textContent=e.title;
+  $('evt-detail').innerHTML=e.detail;
+  $('evt-modal-bg').classList.add('open');
+}
+function closeEvtModal(){ $('evt-modal-bg').classList.remove('open'); }
+
+function renderCalendar(){
+  const year=calDate.getFullYear();
+  const month=calDate.getMonth();
+  const monthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  $('cal-title-label').textContent=`${monthNames[month]} ${year}`;
+  
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  
+  const grid=$('cal-grid-body');
+  grid.innerHTML='';
+  
+  const acc=S.calAcc;
+  const evts=getCalEvents(acc);
+  window.currentEvts = [];
+  let evtId = 0;
+  
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  
+  let dateCells=[];
+  // Prev month padding
+  for(let i=0;i<firstDay;i++){
+    dateCells.push({d:new Date(year, month-1, daysInPrevMonth-firstDay+i+1), isOther:true});
+  }
+  // Current month
+  for(let i=1;i<=daysInMonth;i++){
+    dateCells.push({d:new Date(year, month, i), isOther:false});
+  }
+  // Next month padding (to fill 6 rows if needed, or 5)
+  const remaining = (7 - (dateCells.length % 7)) % 7;
+  for(let i=1;i<=remaining;i++){
+    dateCells.push({d:new Date(year, month+1, i), isOther:true});
+  }
+  
+  dateCells.forEach(c => {
+    const isToday = c.d.getTime()===today.getTime();
+    const cell=document.createElement('div');
+    cell.className=`cal-cell ${c.isOther?'other-month':''} ${isToday?'today':''}`;
+    cell.innerHTML=`<div class="cal-daynum">${c.d.getDate()}</div>`;
+    
+    // Find events for this day
+    const dayEvts = evts.filter(e => {
+      return e.date.getFullYear()===c.d.getFullYear() && e.date.getMonth()===c.d.getMonth() && e.date.getDate()===c.d.getDate();
+    });
+    
+    // Add weekly excel upload if Monday
+    if(c.d.getDay()===1){
+      dayEvts.push({date:c.d, title:'Cargar excels', color:'egray', detail:'Carga semanal de los reportes de Mercado Ads para mantener las recomendaciones actualizadas.'});
+    }
+    
+    const isPast = c.d.getTime() < today.getTime();
+    
+    dayEvts.slice(0,2).forEach(e=>{
+      window.currentEvts[evtId] = e;
+      const chip=document.createElement('div');
+      chip.className=`cal-evt ${e.color} ${isPast?'past':''}`;
+      chip.textContent=e.title;
+      chip.setAttribute('onclick', `showEvtModal(${evtId})`);
+      cell.appendChild(chip);
+      evtId++;
+    });
+    
+    if(dayEvts.length>2){
+      // For the rest just store them and add a "+N más"
+      dayEvts.slice(2).forEach(e => { window.currentEvts[evtId] = e; evtId++; });
+      const more=document.createElement('div');
+      more.className='cal-more';
+      more.textContent=`+${dayEvts.length-2} más`;
+      // Clicking "more" just expands visually in cell or we can just leave it as an indicator
+      more.onclick = (ev) => {
+        ev.stopPropagation();
+        more.style.display='none';
+        dayEvts.slice(2).forEach((e, idx)=>{
+          const cid = evtId - dayEvts.length + 2 + idx;
+          const chip=document.createElement('div');
+          chip.className=`cal-evt ${e.color} ${isPast?'past':''}`;
+          chip.textContent=e.title;
+          chip.setAttribute('onclick', `showEvtModal(${cid})`);
+          cell.appendChild(chip);
+        });
+      };
+      cell.appendChild(more);
+    }
+    
+    grid.appendChild(cell);
+  });
+}
+
 function toggleCheck(acc,id){
   if(!checklist[acc])checklist[acc]={};
   checklist[acc][id]=!checklist[acc][id];
@@ -1477,9 +1697,17 @@ function toggleCheck(acc,id){
     delete checklist[acc][id];
   } else {
     const dec=allDecisions[acc]?.find(d=>d.id===id);
-    if(dec&&dec.category==='roas'&&(dec.action.includes('SUBIR')||dec.action.includes('BAJAR'))){
-      S.roasDates[`${acc}_${dec.campaign}`]=Date.now();
-      localStorage.setItem('maraio_roas_dates',JSON.stringify(S.roasDates));
+    if(dec){
+      if(dec.category==='roas'&&(dec.action.includes('SUBIR')||dec.action.includes('BAJAR'))){
+        S.roasDates[`${acc}_${dec.campaign}`]=Date.now();
+        localStorage.setItem('maraio_roas_dates',JSON.stringify(S.roasDates));
+      } else if(dec.category==='budget'&&(dec.action.includes('SUBIR')||dec.action.includes('BAJAR'))){
+        S.budgetDates[`${acc}_${dec.campaign}`]=Date.now();
+        localStorage.setItem('maraio_budget_dates',JSON.stringify(S.budgetDates));
+      } else if(dec.category==='add'){
+        S.addDates[`${acc}_${dec.mla}`]=Date.now();
+        localStorage.setItem('maraio_add_dates',JSON.stringify(S.addDates));
+      }
     }
   }
   // Save to Supabase
@@ -1510,50 +1738,20 @@ async function loadChecklist(acc){
   }
 }
 
-function renderChecklist(acc){
-  const body=$(`checklist-body-${acc}`);
-  if(!body)return;
-  const decisions=allDecisions[acc]||[];
-  const cl=checklist[acc]||{};
-  const done=decisions.filter(d=>cl[d.id]);
-  const pending=decisions.filter(d=>!cl[d.id]);
-  body.innerHTML=`
-    <div style="padding:8px 14px;font-size:11px;color:var(--text2);">✅ ${done.length} completadas · ⏳ ${pending.length} pendientes</div>
-    <div style="height:4px;background:var(--border);margin:0 14px 8px;border-radius:2px;">
-      <div style="height:100%;background:var(--green);border-radius:2px;width:${decisions.length>0?((done.length/decisions.length)*100).toFixed(0):0}%;transition:width .3s;"></div>
-    </div>
-    ${done.map(d=>`<div style="padding:7px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(42,48,80,.3);">
-      <div class="check-box done" onclick="toggleCheck('${acc}','${d.id}')" style="width:14px;height:14px;font-size:9px;">✓</div>
-      <span style="font-size:12px;color:var(--text2);text-decoration:line-through;flex:1;">${d.title}</span>
-      <span class="tag tg" style="font-size:10px;">${d.action}</span>
-    </div>`).join('')}`;
-}
-
 function renderCalendarForAcc(acc){
   const cont=$(`dec-content-${acc}`);
-  const today=new Date();
-  const d7=new Date(today);d7.setDate(today.getDate()+7);
-  const d14=new Date(today);d14.setDate(today.getDate()+14);
-  const decisions=allDecisions[acc]||[];
-  const cl=checklist[acc]||{};
-  const doneCount=decisions.filter(d=>cl[d.id]).length;
-  cont.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-      <div class="mc"><div class="mlb">Pendientes</div><div class="mv dn">${decisions.length-doneCount}</div><div class="ms">${acc}</div></div>
-      <div class="mc"><div class="mlb">Completadas</div><div class="mv up">${doneCount}</div><div class="ms">de ${decisions.length}</div></div>
-      <div class="mc"><div class="mlb">Próxima revisión</div><div class="mv" style="font-size:15px;">${d7.toLocaleDateString('es-AR')}</div><div class="ms">en 7 días</div></div>
+  cont.innerHTML=`<div id="sc-calendar">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <button class="btn btn-sm" onclick="navMonth(-1)">←</button>
+      <div id="cal-title-label" style="font-weight:600;"></div>
+      <button class="btn btn-sm" onclick="navMonth(1)">→</button>
     </div>
-    <div class="tw"><div class="th"><h3>📅 Calendario — ${acc}</h3></div>
-    ${[
-      {label:'Hoy — '+today.toLocaleDateString('es-AR'),desc:`Ejecutar urgentes de ${acc}: pausar anuncios críticos, resolver conflictos SKU`,color:'var(--red)'},
-      {label:'En 2 días — '+new Date(today.getTime()+2*86400000).toLocaleDateString('es-AR'),desc:`Verificar resultados de cambios de ROAS en ${acc}. ¿Mejoró el ROAS real?`,color:'var(--yellow)'},
-      {label:'Próxima semana — '+d7.toLocaleDateString('es-AR'),desc:`Revisión completa de ${acc}: descargar nuevo reporte de ML Ads, cargar y recalcular.`,color:'var(--green)'},
-      {label:'En 2 semanas — '+d14.toLocaleDateString('es-AR'),desc:`Evaluar candidatos para agregar a publicidad en ${acc}. Verificar sin conflictos de SKU.`,color:'var(--accent)'},
-    ].map(ev=>`<div style="padding:13px 14px;border-bottom:1px solid rgba(42,48,80,.4);display:flex;gap:10px;align-items:flex-start;">
-      <div style="width:3px;border-radius:2px;background:${ev.color};align-self:stretch;flex-shrink:0;"></div>
-      <div><div style="font-weight:600;font-size:13px;margin-bottom:3px;">${ev.label}</div><div style="font-size:12px;color:var(--text2);">${ev.desc}</div></div>
-    </div>`).join('')}
-    </div>`;
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:var(--border);">
+      ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div style="background:var(--surface);text-align:center;font-size:10px;padding:3px;">${d}</div>`).join('')}
+    </div>
+    <div id="cal-grid-body" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:var(--border);"></div>
+  </div>`;
+  setCalAcc(acc);
 }
 
 // ── CHAT ──────────────────────────────────────────────────────
@@ -1715,12 +1913,21 @@ checkStatus().then(async ()=>{
   // Load saved data from Supabase
   await Promise.all([
     loadAdsData('maraio'),
-    loadAdsData('maraio2'),
-    loadChecklist('maraio'),
-    loadChecklist('maraio2')
+    loadAdsData('maraio2')
   ]);
+  loadAccs();
+  loadChecklist('maraio');
+  loadChecklist('maraio2');
+  renderCalendar();
   buildDecisions();
 });
 </script>
+<div id="evt-modal-bg" class="modal-bg" onclick="closeEvtModal()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div id="evt-title" style="font-weight:700;font-size:16px;margin-bottom:10px;"></div>
+    <div id="evt-detail" style="font-size:13px;color:var(--text2);margin-bottom:20px;"></div>
+    <button class="btn btn-p" onclick="closeEvtModal()">Cerrar</button>
+  </div>
+</div>
 </body>
 </html>
