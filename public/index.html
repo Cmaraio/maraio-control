@@ -435,6 +435,7 @@ let S={
   campData:{maraio:{},maraio2:{}},
   loadedFiles:{maraio:[],maraio2:[]}, // track loaded files with name, date, type
   roasTargets:JSON.parse(localStorage.getItem('maraio_roas_targets')||'{}'),
+  roasDates:JSON.parse(localStorage.getItem('maraio_roas_dates')||'{}'),
   chatAddItems:{maraio:[],maraio2:[]},
   skuOverrides:{},chatHistory:[]
 };
@@ -447,6 +448,10 @@ function setRoasTarget(acc,campName,value){
   const key=`${acc}_${campName}`;
   const val=parseFloat(value);
   if(val>=1&&val<=35){
+    if(S.roasTargets[key]!==val){
+      S.roasDates[key]=Date.now();
+      localStorage.setItem('maraio_roas_dates',JSON.stringify(S.roasDates));
+    }
     S.roasTargets[key]=val;
   } else {
     delete S.roasTargets[key];
@@ -1212,8 +1217,18 @@ function buildDecisions(){
       const today2=new Date();
       function rd(days){const d=new Date(today2);d.setDate(d.getDate()+days);return d.toLocaleDateString('es-AR');}
 
+      const roasDate = S.roasDates[roasKey];
+      const inLearningPeriod = roasDate ? (Date.now() - roasDate) < 15 * 86400 * 1000 : false;
+
       // ── ROAS decisions — use real target if entered ──
-      if(userTarget){
+      if(inLearningPeriod){
+        const dDate = new Date(roasDate);
+        dDate.setDate(dDate.getDate() + 15);
+        allDecisions[acc].push({icon:'⏳',type:'info',category:'roas',action:'EN APRENDIZAJE',
+          title:`Campaña: ${camp.name}`,
+          detail:`Cambiaste el ROAS recientemente. Período de aprendizaje hasta el ${dDate.toLocaleDateString('es-AR')}. No realices nuevos ajustes de ROAS.`,
+          priority:5,account:acc,campaign:camp.name,id:'roas_learn_'+campId});
+      } else if(userTarget){
         // User told us the real target — give precise recommendation
         const ratio=currentRoas/userTarget;
         if(ratio>=0.9&&ratio<=1.3){
@@ -1293,6 +1308,7 @@ camp.activeAds.forEach(ad=>{
   }
   mlaMap[mla].clicks+=(ad.clicks||0);
   mlaMap[mla].sales+=(ad.total_sales||ad.direct_sales||0);
+  mlaMap[mla].direct_sales=(mlaMap[mla].direct_sales||0)+(ad.direct_sales||0);
   mlaMap[mla].spend+=(ad.spend||0);
   mlaMap[mla].impressions+=(ad.impressions||0);
 });
@@ -1316,11 +1332,25 @@ Object.values(mlaMap).forEach(pub=>{
       priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'noconv_'+adId});
   // ACOS más del doble del límite → PAUSAR URGENTE
   } else if(pubAcos!==null&&pubAcos>acosLimit*2&&pub.spend>200){
-    const replacement=suggestReplacement(acc,pub.mla);
-    const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:'';
-    allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'PAUSAR URGENTE',
-      title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). $${Math.round(pub.spend).toLocaleString('es-AR')} invertidos → $${Math.round(pub.sales).toLocaleString('es-AR')} en ventas. ROAS ${pubRoas?.toFixed(1)||'—'}x.${replDetail}`,
-      priority:0,account:acc,mla:pub.mla,campaign:pub.campaign,id:'pause_acos_'+adId});
+    const roasDate = S.roasDates[`${acc}_${pub.campaign}`];
+    const inLearningPeriod = roasDate ? (Date.now() - roasDate) < 15 * 86400 * 1000 : false;
+    
+    if (pub.direct_sales < 5 && !inLearningPeriod) {
+      const replacement=suggestReplacement(acc,pub.mla);
+      const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:'';
+      allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'PAUSAR URGENTE',
+        title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). $${Math.round(pub.spend).toLocaleString('es-AR')} invertidos → $${Math.round(pub.sales).toLocaleString('es-AR')} en ventas. ROAS ${pubRoas?.toFixed(1)||'—'}x.${replDetail}`,
+        priority:0,account:acc,mla:pub.mla,campaign:pub.campaign,id:'pause_acos_'+adId});
+    } else {
+      const dDate = roasDate ? new Date(roasDate) : null;
+      if (dDate) dDate.setDate(dDate.getDate() + 15);
+      const detailMsg = inLearningPeriod
+        ? `En revisión hasta el ${dDate.toLocaleDateString('es-AR')}. Volvé a cargar los excels en esa fecha para reevaluar.`
+        : `En revisión permanente (mantiene buen volumen de ventas directas).`;
+      allDecisions[acc].push({icon:'⏳',type:'warn',category:'pause',action:'EN REVISIÓN',
+        title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). ${detailMsg}`,
+        priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'review_acos_'+adId});
+    }
   // ACOS sobre el límite → bajar ROAS objetivo de la campaña
   } else if(pubAcos!==null&&pubAcos>acosLimit&&pub.spend>100){
     allDecisions[acc].push({icon:'📉',type:'warn',category:'pause',action:'ACOS ALTO',
@@ -1432,7 +1462,15 @@ function renderDecTabForAcc(acc){
 function toggleCheck(acc,id){
   if(!checklist[acc])checklist[acc]={};
   checklist[acc][id]=!checklist[acc][id];
-  if(!checklist[acc][id])delete checklist[acc][id];
+  if(!checklist[acc][id]){
+    delete checklist[acc][id];
+  } else {
+    const dec=allDecisions[acc]?.find(d=>d.id===id);
+    if(dec&&dec.category==='roas'&&(dec.action.includes('SUBIR')||dec.action.includes('BAJAR'))){
+      S.roasDates[`${acc}_${dec.campaign}`]=Date.now();
+      localStorage.setItem('maraio_roas_dates',JSON.stringify(S.roasDates));
+    }
+  }
   // Save to Supabase
   fetch(`${API}/api/checklist`,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({account:acc,id,checked:!!checklist[acc][id]})}).catch(()=>{});
