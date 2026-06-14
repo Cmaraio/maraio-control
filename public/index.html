@@ -1344,12 +1344,23 @@ Object.values(mlaMap).forEach(pub=>{
     } else {
       const dDate = roasDate ? new Date(roasDate) : null;
       if (dDate) dDate.setDate(dDate.getDate() + 15);
-      const detailMsg = inLearningPeriod
-        ? `En revisión hasta el ${dDate.toLocaleDateString('es-AR')}. Volvé a cargar los excels en esa fecha para reevaluar.`
-        : `En revisión permanente (mantiene buen volumen de ventas directas).`;
+      
+      const dPlus7 = new Date();
+      dPlus7.setDate(dPlus7.getDate() + 7);
+      const rd7 = dPlus7.toLocaleDateString('es-AR');
+
+      let detailMsg = '';
+      if (pub.direct_sales >= 5 && !inLearningPeriod) {
+        detailMsg = `ACOS alto pero con volumen de ventas. Revisá si el precio cubre el margen antes de pausar. Fecha de revisión: ${rd7}`;
+      } else if (pub.direct_sales < 5 && inLearningPeriod) {
+        detailMsg = `Campaña en período de aprendizaje post-cambio de ROAS. No evaluar hasta el ${dDate.toLocaleDateString('es-AR')}. Volvé a cargar los excels en esa fecha.`;
+      } else if (pub.direct_sales >= 5 && inLearningPeriod) {
+        detailMsg = `Volumen de ventas activo y campaña en período de aprendizaje. No evaluar hasta el ${dDate.toLocaleDateString('es-AR')}.`;
+      }
+
       allDecisions[acc].push({icon:'⏳',type:'warn',category:'pause',action:'EN REVISIÓN',
         title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). ${detailMsg}`,
-        priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'review_acos_'+adId});
+        priority:2,account:acc,mla:pub.mla,campaign:pub.campaign,id:'review_acos_'+adId});
     }
   // ACOS sobre el límite → bajar ROAS objetivo de la campaña
   } else if(pubAcos!==null&&pubAcos>acosLimit&&pub.spend>100){
