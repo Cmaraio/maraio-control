@@ -1336,31 +1336,59 @@ function buildDecisions(){
           priority:2,account:acc,campaign:camp.name,id:'budget_dn_'+campId});
       }
 
-      // ── PAUSE / REPLACE decisions ──
+      // ── PAUSE / REPLACE decisions (grouped by MLA) ──
+      // Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
+      const mlaMap={};
       camp.activeAds.forEach(ad=>{
-        const adId=(ad.mla||ad.title||'x').replace(/[^a-z0-9]/gi,'_')+'_'+acc;
-        const title=ad.title?.substring(0,45)||ad.mla||'—';
-        const adRoas=ad.roas;
-        const adClicks=ad.clicks||0;
-        const adSales=ad.total_sales||ad.direct_sales||0;
-        const adSpend=ad.spend||0;
-        const adImpressions=ad.impressions||0;
-        const adAcos=ad.acos;
-        const acosLimit=getAcosLimit(ad);
-        const roasTgt=getRoasTarget(ad);
+        const mla=ad.mla||ad.title||'x';
+        if(!mlaMap[mla]){
+          mlaMap[mla]={
+            mla,
+            title:ad.title?.substring(0,45)||ad.mla||'-',
+            clicks:0,sales:0,direct_sales:0,spend:0,impressions:0,
+            roas:null,acos:null,
+            campaign:camp.name,account:acc
+          };
+        }
+        mlaMap[mla].clicks+=(ad.clicks||0);
+        mlaMap[mla].sales+=(ad.total_sales||ad.direct_sales||0);
+        mlaMap[mla].direct_sales=(mlaMap[mla].direct_sales||0)+(ad.direct_sales||0);
+        mlaMap[mla].spend+=(ad.spend||0);
+        mlaMap[mla].impressions+=(ad.impressions||0);
+      });
 
-        // ACOS muy alto (doble del límite) → pausar urgente
-        if(adAcos!==null&&adAcos>acosLimit*2&&adSpend>200){
-          const roasDate = S.roasDates[`${acc}_${camp.name}`];
+      // Calcular ROAS y ACOS consolidados por publicación
+      Object.values(mlaMap).forEach(pub=>{
+        pub.roas=pub.spend>0&&pub.sales>0?pub.sales/pub.spend:null;
+        pub.acos=pub.sales>0?(pub.spend/pub.sales)*100:null;
+      });
+
+      // Generar recomendaciones por publicación
+      Object.values(mlaMap).forEach(pub=>{
+        const adId=pub.mla.replace(/[^a-z0-9]/gi,'_')+'_'+acc;
+        const acosLimit=getAcosLimit({mla:pub.mla,campaign:pub.campaign});
+        const roasTgt=getRoasTarget({mla:pub.mla,campaign:pub.campaign});
+        const pubRoas=pub.roas;
+        const pubAcos=pub.acos;
+
+        // 0 ventas con inversión significativa → PAUSAR
+        if(pub.clicks>30&&pub.sales===0&&pub.spend>100){
+          allDecisions[acc].push({icon:'🔍',type:'warn',category:'pause',action:'SIN VENTAS',
+            title:pub.title,
+            detail:`${pub.clicks} clicks y 0 ventas en "${pub.campaign}". $${Math.round(pub.spend).toLocaleString('es-AR')} invertidos sin retorno. Pausar la publicación completa.`,
+            priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'noconv_'+adId});
+
+        // ACOS más del doble del límite → PAUSAR URGENTE
+        } else if(pubAcos!==null&&pubAcos>acosLimit*2&&pub.spend>200){
+          const roasDate = S.roasDates[`${acc}_${pub.campaign}`];
           const inLearningPeriod = roasDate ? (Date.now() - roasDate) < 15 * 86400 * 1000 : false;
-          const directSales = ad.direct_sales || 0;
-
-          if (directSales < 5 && !inLearningPeriod) {
-            const replacement=suggestReplacement(acc,ad.mla);
+          
+          if (pub.direct_sales < 5 && !inLearningPeriod) {
+            const replacement=suggestReplacement(acc,pub.mla);
             const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:'';
             allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'PAUSAR URGENTE',
-              title,detail:`ACOS ${adAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). $${Math.round(adSpend).toLocaleString('es-AR')} invertidos → $${Math.round(ad.revenue||0).toLocaleString('es-AR')} en ventas. ROAS ${adRoas?.toFixed(1)||'—'}x.${replDetail}`,
-              priority:0,account:acc,mla:ad.mla,campaign:camp.name,id:'pause_acos_'+adId});
+              title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). $${Math.round(pub.spend).toLocaleString('es-AR')} invertidos → $${Math.round(pub.sales).toLocaleString('es-AR')} en ventas. ROAS ${pubRoas?.toFixed(1)||'—'}x.${replDetail}`,
+              priority:0,account:acc,mla:pub.mla,campaign:pub.campaign,id:'pause_acos_'+adId});
           } else {
             const dDate = roasDate ? new Date(roasDate) : null;
             if (dDate) dDate.setDate(dDate.getDate() + 15);
@@ -1370,46 +1398,38 @@ function buildDecisions(){
             const rd7 = dPlus7.toLocaleDateString('es-AR');
 
             let detailMsg = '';
-            if (directSales >= 5 && !inLearningPeriod) {
+            if (pub.direct_sales >= 5 && !inLearningPeriod) {
               detailMsg = `ACOS alto pero con volumen de ventas. Revisá si el precio cubre el margen antes de pausar. Fecha de revisión: ${rd7}`;
-            } else if (directSales < 5 && inLearningPeriod) {
+            } else if (pub.direct_sales < 5 && inLearningPeriod) {
               detailMsg = `Campaña en período de aprendizaje post-cambio de ROAS. No evaluar hasta el ${dDate.toLocaleDateString('es-AR')}. Volvé a cargar los excels en esa fecha.`;
-            } else if (directSales >= 5 && inLearningPeriod) {
+            } else if (pub.direct_sales >= 5 && inLearningPeriod) {
               detailMsg = `Volumen de ventas activo y campaña en período de aprendizaje. No evaluar hasta el ${dDate.toLocaleDateString('es-AR')}.`;
             }
 
             allDecisions[acc].push({icon:'⏳',type:'warn',category:'pause',action:'EN REVISIÓN',
-              title,detail:`ACOS ${adAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). ${detailMsg}`,
-              priority:2,account:acc,mla:ad.mla,campaign:camp.name,id:'review_acos_'+adId});
+              title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% — más del doble del límite (${acosLimit}%). ${detailMsg}`,
+              priority:2,account:acc,mla:pub.mla,campaign:pub.campaign,id:'review_acos_'+adId});
           }
 
         // ACOS sobre el límite → bajar ROAS objetivo de la campaña
-        } else if(adAcos!==null&&adAcos>acosLimit&&adSpend>100){
+        } else if(pubAcos!==null&&pubAcos>acosLimit&&pub.spend>100){
           allDecisions[acc].push({icon:'📉',type:'warn',category:'pause',action:'ACOS ALTO',
-            title,detail:`ACOS ${adAcos.toFixed(1)}% sobre el límite (${acosLimit}%). En ML Ads → Campañas → "${camp.name}" → bajá el ROAS objetivo para mejorar eficiencia. ROAS actual: ${adRoas?.toFixed(1)||'—'}x.`,
-            priority:1,account:acc,mla:ad.mla,campaign:camp.name,id:'acos_high_'+adId});
-
-        // Muchos clicks, cero ventas
-        } else if(adClicks>30&&adSales===0&&adSpend>100){
-          const replacement=suggestReplacement(acc,ad.mla);
-          const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:'';
-          allDecisions[acc].push({icon:'🔍',type:'warn',category:'pause',action:'SIN VENTAS',
-            title,detail:`${adClicks} clicks y 0 ventas en "${camp.name}". $${Math.round(adSpend).toLocaleString('es-AR')} invertidos sin retorno. Revisá precio y publicación.${replDetail}`,
-            priority:1,account:acc,mla:ad.mla,campaign:camp.name,id:'noconv_'+adId});
+            title:pub.title,detail:`ACOS ${pubAcos.toFixed(1)}% sobre el límite (${acosLimit}%). En ML Ads → Campañas → "${pub.campaign}" → bajá el ROAS objetivo para mejorar eficiencia. ROAS actual: ${pubRoas?.toFixed(1)||'—'}x.`,
+            priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'acos_high_'+adId});
 
         // ROAS muy bajo con inversión
-        } else if(adRoas!==null&&adRoas<5&&adSpend>200&&adSales>0){
-          const replacement=suggestReplacement(acc,ad.mla);
+        } else if(pubRoas!==null&&pubRoas<5&&pub.spend>200&&pub.sales>0){
+          const replacement=suggestReplacement(acc,pub.mla);
           const replDetail=replacement?` Candidato: "${replacement.title?.substring(0,35)}" ($${replacement.price?.toLocaleString('es-AR')}).`:' Sin candidatos sin conflicto de SKU.';
           allDecisions[acc].push({icon:'⏸️',type:'danger',category:'pause',action:'ROAS MUY BAJO',
-            title,detail:`ROAS ${adRoas.toFixed(1)}x — muy bajo. $${Math.round(adSpend).toLocaleString('es-AR')} invertidos en "${camp.name}".${replDetail}`,
-            priority:1,account:acc,mla:ad.mla,campaign:camp.name,id:'lowroas_'+adId});
+            title:pub.title,detail:`ROAS ${pubRoas.toFixed(1)}x — muy bajo. $${Math.round(pub.spend).toLocaleString('es-AR')} invertidos en "${pub.campaign}".${replDetail}`,
+            priority:1,account:acc,mla:pub.mla,campaign:pub.campaign,id:'lowroas_'+adId});
 
         // Muchas impresiones, pocos clicks → problema de publicación
-        } else if(adImpressions>10000&&adClicks<20){
+        } else if(pub.impressions>10000&&pub.clicks<20){
           allDecisions[acc].push({icon:'🖼️',type:'warn',category:'pause',action:'CTR MUY BAJO',
-            title,detail:`${adImpressions.toLocaleString('es-AR')} impresiones y solo ${adClicks} clicks (CTR ${((adClicks/adImpressions)*100).toFixed(2)}%) en "${camp.name}". Mejorá título, foto principal y precio.`,
-            priority:2,account:acc,mla:ad.mla,campaign:camp.name,id:'ctr_'+adId});
+            title:pub.title,detail:`${pub.impressions.toLocaleString('es-AR')} impresiones y solo ${pub.clicks} clicks (CTR ${((pub.clicks/pub.impressions)*100).toFixed(2)}%) en "${pub.campaign}". Mejorá título, foto principal y precio.`,
+            priority:2,account:acc,mla:pub.mla,campaign:pub.campaign,id:'ctr_'+adId});
         }
       });
 
