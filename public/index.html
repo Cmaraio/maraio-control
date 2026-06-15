@@ -1474,7 +1474,7 @@ camp.activeAds.forEach(ad=>{
     }
   }
 
-  const mlaKey = parentMla || baseTitle || 'x';
+  const mlaKey = baseTitle || parentMla || 'x';
 
   if(!mlaMap[mlaKey]){
     mlaMap[mlaKey]={
