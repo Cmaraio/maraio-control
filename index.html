@@ -1430,7 +1430,6 @@ function buildDecisions(){
       // — PAUSE / REPLACE decisions —
 // Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
 const mlaMap={};
-try {
 camp.activeAds.forEach(ad=>{
   let rawMla = ad.mla ? ad.mla.toString() : '';
   let parentMla = rawMla;
@@ -1587,11 +1586,6 @@ Object.values(mlaMap).forEach(pub=>{
       allDecisions[acc].push({icon:'💬',type:'info',category:'add',action:'SUGERIDO POR CHAT',
         title:item.title,detail:item.detail,priority:3,account:acc,mla:item.mla,id:'chat_add_'+item.mla+'_'+acc});
     });
-
-} catch(err) {
-  console.error("Error in mlaMap grouping:", err);
-  toast("Error calculando recomendaciones: " + err.message, "error");
-}
 
     allDecisions[acc].sort((a,b)=>a.priority-b.priority);
   });
