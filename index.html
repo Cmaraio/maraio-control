@@ -1467,11 +1467,11 @@ camp.activeAds.forEach(ad=>{
       campaign:camp.name,account:acc
     };
   }
-  mlaMap[mla].clicks+=(ad.clicks||0);
-  mlaMap[mla].sales+=(ad.total_sales||ad.direct_sales||0);
-  mlaMap[mla].direct_sales=(mlaMap[mla].direct_sales||0)+(ad.direct_sales||0);
-  mlaMap[mla].spend+=(ad.spend||0);
-  mlaMap[mla].impressions+=(ad.impressions||0);
+  mlaMap[mlaKey].clicks+=(ad.clicks||0);
+  mlaMap[mlaKey].sales+=(ad.total_sales||ad.direct_sales||0);
+  mlaMap[mlaKey].direct_sales=(mlaMap[mlaKey].direct_sales||0)+(ad.direct_sales||0);
+  mlaMap[mlaKey].spend+=(ad.spend||0);
+  mlaMap[mlaKey].impressions+=(ad.impressions||0);
 });
 // Calcular ROAS y ACOS consolidados por publicación
 Object.values(mlaMap).forEach(pub=>{
