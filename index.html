@@ -983,7 +983,11 @@ function parseMLReport(text,filename,format,acc){
     const vals=line.split(delim).map(v=>v.trim().replace(/"/g,''));
     if(vals.every(v=>!v))continue;
     const row={source:filename,account:acc};
-    Object.entries(fieldMap).forEach(([i,f])=>{row[f]=vals[i]||'';});
+    Object.entries(fieldMap).forEach(([i,f])=>{
+      if(row[f]) row[f + '_' + i] = vals[i] || '';
+      else row[f] = vals[i] || '';
+      row['raw_col_' + i] = vals[i] || ''; // Save all raw columns to ensure no data is lost
+    });
     if(!row.mla&&!row.campaign)continue;
     ['impressions','clicks','cpc','ctr','cvr','revenue','spend','acos','roas','direct_sales','indirect_sales','total_sales','direct_revenue','indirect_revenue'].forEach(f=>{
       const v=String(row[f]||'').replace(/[^0-9.,\-]/g,'').replace(',','.');
@@ -1433,8 +1437,20 @@ const mlaMap={};
 camp.activeAds.forEach(ad=>{
   let rawMla = ad.mla ? ad.mla.toString().trim() : '';
   let parentMla = null;
+
+  // Escanear TODAS las celdas del Excel (guardadas en ad) para encontrar el MLA padre
+  for(const val of Object.values(ad)) {
+    const strVal = String(val || '');
+    if(strVal.includes('MLA')) {
+      const match = strVal.match(/MLA\d+/);
+      if(match) {
+        parentMla = match[0];
+        break;
+      }
+    }
+  }
   
-  if(rawMla.includes('MLA')){
+  if(!parentMla && rawMla.includes('MLA')){
     parentMla = rawMla.match(/MLA\d+/)?.[0];
   }
   
