@@ -1431,17 +1431,18 @@ function buildDecisions(){
 // Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
 const mlaMap={};
 camp.activeAds.forEach(ad=>{
-  let rawMla = ad.mla ? ad.mla.toString() : '';
-  let parentMla = rawMla;
+  let rawMla = ad.mla ? ad.mla.toString().trim() : '';
+  let parentMla = null;
+  
   if(rawMla.includes('MLA')){
-    parentMla = rawMla.match(/MLA\d+/)?.[0] || rawMla;
+    parentMla = rawMla.match(/MLA\d+/)?.[0];
   }
   
-  // Si no hay MLA, intentamos agrupar por un título base sin variantes (asumiendo que las variantes se agregan al final)
+  // Si no se pudo obtener un MLA padre claro, forzamos la búsqueda por título
   let safeTitle = String(ad.title || '');
   let baseTitle = safeTitle || '-';
+  
   if(!parentMla && safeTitle) {
-    // Buscar la publicación en allListings que comience igual
     const listing = allListings.find(i => {
       const iTitle = String(i.title || '');
       return iTitle && safeTitle.startsWith(iTitle);
@@ -1450,8 +1451,10 @@ camp.activeAds.forEach(ad=>{
       parentMla = listing.id;
       baseTitle = listing.title;
     } else {
-      // Remover patrones comunes de variantes al final (e.g. " Negro 31")
-      baseTitle = safeTitle.replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Talle|Color|Cordura|Cuero|\d{2,3})[\s\d\w]*$/i, '').trim();
+      // Limpieza agresiva de variantes (Talles, colores, " - ", etc)
+      baseTitle = safeTitle.replace(/\s*-\s*.*$/i, '')
+                           .replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Rosa|Verde|Amarillo|Beige|Marron|Color|Talle|Cm|Mm|Cordura|Cuero|\d{2,3})[\s\d\w]*$/i, '')
+                           .trim();
     }
   }
 
@@ -1459,7 +1462,7 @@ camp.activeAds.forEach(ad=>{
 
   if(!mlaMap[mlaKey]){
     mlaMap[mlaKey]={
-      mla: parentMla || rawMla || 'x',
+      mla: parentMla || (rawMla.match(/^\d+$/) ? 'MLA'+rawMla : rawMla) || 'x',
       title: baseTitle.substring(0,45),
       clicks:0,sales:0,spend:0,impressions:0,
 
