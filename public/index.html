@@ -1430,6 +1430,7 @@ function buildDecisions(){
       // — PAUSE / REPLACE decisions —
 // Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
 const mlaMap={};
+try {
 camp.activeAds.forEach(ad=>{
   let rawMla = ad.mla ? ad.mla.toString() : '';
   let parentMla = rawMla;
@@ -1438,16 +1439,20 @@ camp.activeAds.forEach(ad=>{
   }
   
   // Si no hay MLA, intentamos agrupar por un título base sin variantes (asumiendo que las variantes se agregan al final)
-  let baseTitle = ad.title || '-';
-  if(!parentMla && ad.title) {
+  let safeTitle = String(ad.title || '');
+  let baseTitle = safeTitle || '-';
+  if(!parentMla && safeTitle) {
     // Buscar la publicación en allListings que comience igual
-    const listing = allListings.find(i => ad.title.startsWith(i.title));
+    const listing = allListings.find(i => {
+      const iTitle = String(i.title || '');
+      return iTitle && safeTitle.startsWith(iTitle);
+    });
     if(listing) {
       parentMla = listing.id;
       baseTitle = listing.title;
     } else {
       // Remover patrones comunes de variantes al final (e.g. " Negro 31")
-      baseTitle = ad.title.replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Talle|Color|Cordura|Cuero|\d{2,3})[\s\d\w]*$/i, '').trim();
+      baseTitle = safeTitle.replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Talle|Color|Cordura|Cuero|\d{2,3})[\s\d\w]*$/i, '').trim();
     }
   }
 
@@ -1458,6 +1463,7 @@ camp.activeAds.forEach(ad=>{
       mla: parentMla || rawMla || 'x',
       title: baseTitle.substring(0,45),
       clicks:0,sales:0,spend:0,impressions:0,
+
       roas:null,acos:null,
       campaign:camp.name,account:acc
     };
@@ -1581,6 +1587,11 @@ Object.values(mlaMap).forEach(pub=>{
       allDecisions[acc].push({icon:'💬',type:'info',category:'add',action:'SUGERIDO POR CHAT',
         title:item.title,detail:item.detail,priority:3,account:acc,mla:item.mla,id:'chat_add_'+item.mla+'_'+acc});
     });
+
+} catch(err) {
+  console.error("Error in mlaMap grouping:", err);
+  toast("Error calculando recomendaciones: " + err.message, "error");
+}
 
     allDecisions[acc].sort((a,b)=>a.priority-b.priority);
   });
