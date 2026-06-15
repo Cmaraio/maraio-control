@@ -1435,53 +1435,16 @@ function buildDecisions(){
 // Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
 const mlaMap={};
 camp.activeAds.forEach(ad=>{
-  let rawMla = ad.mla ? ad.mla.toString().trim() : '';
-  let parentMla = null;
-
-  // Escanear TODAS las celdas del Excel (guardadas en ad) para encontrar el MLA padre
-  for(const val of Object.values(ad)) {
-    const strVal = String(val || '');
-    if(strVal.includes('MLA')) {
-      const match = strVal.match(/MLA\d+/);
-      if(match) {
-        parentMla = match[0];
-        break;
-      }
-    }
-  }
-  
-  if(!parentMla && rawMla.includes('MLA')){
-    parentMla = rawMla.match(/MLA\d+/)?.[0];
-  }
-  
-  // Si no se pudo obtener un MLA padre claro, forzamos la búsqueda por título
+  // Agrupar por los primeros 20 caracteres del título
   let safeTitle = String(ad.title || '');
-  let baseTitle = safeTitle || '-';
-  
-  if(!parentMla && safeTitle) {
-    const listing = allListings.find(i => {
-      const iTitle = String(i.title || '');
-      return iTitle && safeTitle.startsWith(iTitle);
-    });
-    if(listing) {
-      parentMla = listing.id;
-      baseTitle = listing.title;
-    } else {
-      // Limpieza agresiva de variantes (Talles, colores, " - ", etc)
-      baseTitle = safeTitle.replace(/\s*-\s*.*$/i, '')
-                           .replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Rosa|Verde|Amarillo|Beige|Marron|Color|Talle|Cm|Mm|Cordura|Cuero|\d{2,3})[\s\d\w]*$/i, '')
-                           .trim();
-    }
-  }
-
-  const mlaKey = parentMla || baseTitle || 'x';
+  let baseTitle = safeTitle.substring(0, 20).trim();
+  const mlaKey = baseTitle || 'x';
 
   if(!mlaMap[mlaKey]){
     mlaMap[mlaKey]={
-      mla: parentMla || (rawMla.match(/^\d+$/) ? 'MLA'+rawMla : rawMla) || 'x',
-      title: baseTitle.substring(0,45),
+      mla: ad.mla || 'x',
+      title: safeTitle.substring(0,45),
       clicks:0,sales:0,spend:0,impressions:0,
-
       roas:null,acos:null,
       campaign:camp.name,account:acc
     };
@@ -1562,28 +1525,29 @@ Object.values(mlaMap).forEach(pub=>{
   }
 });
 
-      // Stock issues (Realtime API)
-      const mlaSeen = new Set();
-      camp.activeAds.forEach(ad=>{
-        if(mlaSeen.has(ad.mla)) return;
-        mlaSeen.add(ad.mla);
-        const rStock = S.realtimeStock[ad.mla];
-        if(rStock){
-          if(rStock.stock === 0){
-            allDecisions[acc].push({icon:'🚫',type:'danger',category:'pause',action:'SIN STOCK',
-              title:`${ad.title?.substring(0,40)||ad.mla}`,
-              detail:`Sin stock en ${acc} pero el anuncio sigue activo en "${camp.name}". Pausalo inmediatamente.`,
-              priority:0,account:acc,mla:ad.mla,campaign:camp.name,id:'api_stock0_'+ad.mla+'_'+acc});
-          } else if(rStock.stock <= 15){
-            let det = `Stock disponible: ${rStock.stock} unidades. Considerá reponer antes de seguir invirtiendo en publicidad.`;
-            if(rStock.zeroVariants && rStock.zeroVariants.length) det += ` Variante(s) sin stock: ${rStock.zeroVariants.join(', ')}.`;
-            allDecisions[acc].push({icon:'⚠️',type:'orange',category:'pause',action:'STOCK BAJO',
-              title:`${ad.title?.substring(0,40)||ad.mla}`,
-              detail:det,
-              priority:0.5,account:acc,mla:ad.mla,campaign:camp.name,id:'api_lowstock_'+ad.mla+'_'+acc});
-          }
-        }
-      });
+      // Stock issues (Realtime API) — agrupar por título para evitar duplicados
+const titleSeen = new Set();
+camp.activeAds.forEach(ad=>{
+ const titleKey = (ad.title?.substring(0,25) || ad.mla).replace(/\s*(negro|blanco|rojo|azul|gris|\d{2,3})\s*.*$/i,'').trim();
+  if(titleSeen.has(titleKey)) return;
+  titleSeen.add(titleKey);
+  const rStock = S.realtimeStock[ad.mla];
+  if(rStock){
+    if(rStock.stock === 0){
+      allDecisions[acc].push({icon:'🚫',type:'danger',category:'pause',action:'SIN STOCK',
+        title:`${ad.title?.substring(0,40)||ad.mla}`,
+        detail:`Sin stock en ${acc} pero el anuncio sigue activo en "${camp.name}". Pausalo inmediatamente.`,
+        priority:0,account:acc,mla:ad.mla,campaign:camp.name,id:'api_stock0_'+ad.mla+'_'+acc});
+    } else if(rStock.stock <= 15){
+      let det = `Stock disponible: ${rStock.stock} unidades. Considerá reponer antes de seguir invirtiendo en publicidad.`;
+      if(rStock.zeroVariants && rStock.zeroVariants.length) det += ` Variante(s) sin stock: ${rStock.zeroVariants.join(', ')}.`;
+      allDecisions[acc].push({icon:'⚠️',type:'orange',category:'pause',action:'STOCK BAJO',
+        title:`${ad.title?.substring(0,40)||ad.mla}`,
+        detail:det,
+        priority:0.5,account:acc,mla:ad.mla,campaign:camp.name,id:'api_lowstock_'+titleKey.replace(/[^a-z0-9]/gi,'_')+'_'+acc});
+    }
+  }
+});
     });
 
     // ADD candidates from listings (not yet in ads of either account)
