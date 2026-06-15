@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Maraio — Centro de Control ML</title>
 <style>
-:root{--bg:#0f1117;--surface:#181c27;--surface2:#1e2335;--border:#2a3050;--accent:#3b82f6;--accent2:#6366f1;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--text:#e8eaf0;--text2:#8b92a8;--text3:#545c75;}
+:root{--bg:#0f1117;--surface:#181c27;--surface2:#1e2335;--border:#2a3050;--accent:#3b82f6;--accent2:#6366f1;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--orange:#f97316;--text:#e8eaf0;--text2:#8b92a8;--text3:#545c75;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:14px;min-height:100vh;}
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
@@ -53,6 +53,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
 .tg{background:rgba(34,197,94,.15);color:var(--green);}
 .tr{background:rgba(239,68,68,.1);color:var(--red);}
 .ty{background:rgba(245,158,11,.15);color:var(--yellow);}
+.to{background:rgba(249,115,22,.15);color:var(--orange);}
 .tb{background:rgba(59,130,246,.15);color:#3b82f6;}
 .ti{background:rgba(99,102,241,.15);color:#6366f1;}
 .uz{border:2px dashed var(--border);border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;}
@@ -496,7 +497,8 @@ let S={
   budgetDates:JSON.parse(localStorage.getItem('maraio_budget_dates')||'{}'),
   addDates:JSON.parse(localStorage.getItem('maraio_add_dates')||'{}'),
   chatAddItems:{maraio:[],maraio2:[]},
-  skuOverrides:{},chatHistory:[]
+  skuOverrides:{},chatHistory:[],
+  realtimeStock:JSON.parse(localStorage.getItem('maraio_r_stock')||'{}')
 };
 let allListings=[],skuMap={};
 let checklist={maraio:JSON.parse(localStorage.getItem('maraio_checklist_m')||'{}'),maraio2:JSON.parse(localStorage.getItem('maraio_checklist_m2')||'{}')};
@@ -539,13 +541,27 @@ const $=id=>document.getElementById(id);
 function toast(msg,type='info'){const c=$('tc'),el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;c.appendChild(el);setTimeout(()=>el.remove(),4000);}
 
 // ── NAV ──────────────────────────────────────────────────────
-function nav(name){
+async function nav(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   $('sc-'+name).classList.add('active');
   const nv=$('nv-'+name);if(nv)nv.classList.add('active');
-  const actions={overview:loadOverview,sku:loadSKU,listings:loadListings,sales:loadSales,decisions:buildDecisions,alerts:buildAlerts,pricing:()=>calcP()};
-  if(actions[name])actions[name]();
+  const actions={
+    overview:loadOverview,sku:loadSKU,listings:loadListings,sales:loadSales,alerts:buildAlerts,pricing:()=>calcP(),
+    decisions: async () => {
+      $('sc-decisions').style.opacity = '0.6';
+      await loadRealtimeStock();
+      $('sc-decisions').style.opacity = '1';
+      buildDecisions();
+    },
+    ads: async () => {
+      $('sc-ads').style.opacity = '0.6';
+      await loadRealtimeStock();
+      $('sc-ads').style.opacity = '1';
+      ['maraio','maraio2'].forEach(renderAdsForAccount);
+    }
+  };
+  if(actions[name]) actions[name]();
 }
 
 function selAcc(acc){
@@ -597,6 +613,52 @@ async function checkStatus(){
     ['maraio','maraio2'].forEach(acc=>{S.accounts[acc].connected=d[acc]?.connected||false;S.accounts[acc].userId=d[acc]?.user_id||null;});
     updateConnUI();
   }catch(e){toast('No se puede conectar al servidor','error');}
+}
+
+async function loadRealtimeStock(){
+  const allMlas = new Set();
+  ['maraio','maraio2'].forEach(acc=>{
+    if(!S.accounts[acc].connected) return;
+    S.ads[acc].filter(a=>a.status==='Activo').forEach(a=>{
+      if(a.mla) allMlas.add(a.mla);
+    });
+  });
+  
+  const mlaArr = Array.from(allMlas);
+  const now = Date.now();
+  const toFetch = mlaArr.filter(m => !S.realtimeStock[m] || (now - S.realtimeStock[m].ts) > 3600000);
+  
+  if(toFetch.length === 0) return false;
+
+  const bSize = 20;
+  for(let i=0; i<toFetch.length; i+=bSize){
+    const batch = toFetch.slice(i, i+bSize);
+    // Determine which account to use for the API call (use maraio if connected, else maraio2)
+    const acc = S.accounts['maraio'].connected ? 'maraio' : 'maraio2';
+    const r = await apiGet(acc, `/items?ids=${batch.join(',')}`);
+    if(r && Array.isArray(r)){
+      r.forEach(item => {
+        if(item.code === 200 && item.body){
+          const b = item.body;
+          let stock = b.available_quantity;
+          let zeroVar = [];
+          if(b.variations && b.variations.length > 0){
+            stock = 0;
+            b.variations.forEach(v => {
+              stock += v.available_quantity;
+              if(v.available_quantity === 0){
+                const name = v.attribute_combinations?.map(a=>a.value_name).join(' ') || v.id;
+                zeroVar.push(name);
+              }
+            });
+          }
+          S.realtimeStock[b.id] = { stock, zeroVariants: zeroVar, ts: now };
+        }
+      });
+    }
+  }
+  localStorage.setItem('maraio_r_stock', JSON.stringify(S.realtimeStock));
+  return true;
 }
 
 // ── AUTH ─────────────────────────────────────────────────────
@@ -1098,10 +1160,24 @@ return false; // no campaign report = don't show
             const ac=ad.acos===null?'':ad.acos<=acosLim?'tg':ad.acos<=acosLim*1.5?'ty':'tr';
             const rc=ad.roas===null?'':ad.roas>=roasTgt?'tg':ad.roas>=5?'ty':'tr';
             const sc=ad.status==='Activo'?'tg':ad.status==='Pausado'?'ty':'';
+
+            let stockHtml = '';
+            const rStock = S.realtimeStock[ad.mla];
+            if(rStock){
+              if(rStock.stock === 0) stockHtml = `<div style="margin-top:2px;"><span class="tag tr">SIN STOCK — pausar publicación</span></div>`;
+              else if(rStock.stock <= 15) {
+                stockHtml = `<div style="margin-top:2px;font-size:10px;font-weight:600;color:var(--orange);">⚠️ ${rStock.stock} u.</div>`;
+                if(rStock.zeroVariants && rStock.zeroVariants.length) stockHtml += `<div style="font-size:9px;color:var(--red);">Var. sin stock: ${rStock.zeroVariants[0]}</div>`;
+              } else {
+                stockHtml = `<div style="margin-top:2px;font-size:10px;font-weight:600;color:var(--green);">${rStock.stock} u. en stock</div>`;
+              }
+            }
+
             return `<tr>
               <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">
                 <div style="font-weight:500;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ad.title||''}">${ad.title?.substring(0,35)||'—'}</div>
                 <div style="font-size:10px;color:var(--text3);">${ad.mla||'—'}</div>
+                ${stockHtml}
               </td>
               <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${ad.status?`<span class="tag ${sc}">${ad.status}</span>`:'-'}</td>
               <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${hasData?(ad.impressions||0).toLocaleString('es-AR'):'-'}</td>
@@ -1441,20 +1517,25 @@ Object.values(mlaMap).forEach(pub=>{
   }
 });
 
-      // Stock issues
+      // Stock issues (Realtime API)
+      const mlaSeen = new Set();
       camp.activeAds.forEach(ad=>{
-        const listing=allListings.find(i=>i.id===ad.mla&&i.account===acc);
-        if(listing){
-          if(listing.available_quantity===0){
-            allDecisions[acc].push({icon:'🚫',type:'danger',category:'pause',action:'SIN STOCK + AD ACTIVO',
+        if(mlaSeen.has(ad.mla)) return;
+        mlaSeen.add(ad.mla);
+        const rStock = S.realtimeStock[ad.mla];
+        if(rStock){
+          if(rStock.stock === 0){
+            allDecisions[acc].push({icon:'🚫',type:'danger',category:'pause',action:'SIN STOCK',
               title:`${ad.title?.substring(0,40)||ad.mla}`,
               detail:`Sin stock en ${acc} pero el anuncio sigue activo en "${camp.name}". Pausalo inmediatamente.`,
-              priority:0,account:acc,id:'stock0_'+ad.mla+'_'+acc});
-          } else if(listing.available_quantity<=3){
-            allDecisions[acc].push({icon:'📦',type:'warn',category:'pause',action:'STOCK CRÍTICO',
+              priority:0,account:acc,mla:ad.mla,campaign:camp.name,id:'api_stock0_'+ad.mla+'_'+acc});
+          } else if(rStock.stock <= 15){
+            let det = `Stock disponible: ${rStock.stock} unidades. Considerá reponer antes de seguir invirtiendo en publicidad.`;
+            if(rStock.zeroVariants && rStock.zeroVariants.length) det += ` Variante(s) sin stock: ${rStock.zeroVariants.join(', ')}.`;
+            allDecisions[acc].push({icon:'⚠️',type:'orange',category:'pause',action:'STOCK BAJO',
               title:`${ad.title?.substring(0,40)||ad.mla}`,
-              detail:`Solo ${listing.available_quantity} unidades. Campaña: "${camp.name}". Considerá pausar o reponer urgente.`,
-              priority:2,account:acc,id:'lowstock_'+ad.mla+'_'+acc});
+              detail:det,
+              priority:0.5,account:acc,mla:ad.mla,campaign:camp.name,id:'api_lowstock_'+ad.mla+'_'+acc});
           }
         }
       });
@@ -1502,8 +1583,8 @@ function renderDecTabForAcc(acc){
   if(tab==='calendar'){renderCalendarForAcc(acc);$(`dec-checklist-${acc}`).style.display='none';return;}
 
   const filtered=decisions.filter(d=>d.category===tab);
-  const colors={danger:'var(--red)',warn:'var(--yellow)',ok:'var(--green)',info:'var(--accent)'};
-  const tagCls={danger:'tr',warn:'ty',ok:'tg',info:'tb'};
+  const colors={danger:'var(--red)',warn:'var(--yellow)',orange:'var(--orange)',ok:'var(--green)',info:'var(--accent)'};
+  const tagCls={danger:'tr',warn:'ty',orange:'to',ok:'tg',info:'tb'};
 
   if(!filtered.length){
     cont.innerHTML=`<div class="es"><div class="ei">✅</div><h3>Sin recomendaciones acá</h3><p>Todo en orden para ${acc} en esta categoría</p></div>`;
