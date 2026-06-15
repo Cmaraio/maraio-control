@@ -902,7 +902,7 @@ function readXLSXWithLib(file,acc){
   reader.readAsArrayBuffer(file);
 }
 
-const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
+const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','id de ítem':'mla','id de item':'mla','item_id':'mla','id. de publicación':'mla','id. de publicacion':'mla','id de publicación':'mla','id de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
 
 function parseCampaignsReport(text,filename,acc){
   try{
@@ -1431,11 +1431,32 @@ function buildDecisions(){
 // Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
 const mlaMap={};
 camp.activeAds.forEach(ad=>{
-  const mla=ad.mla||ad.title||'x';
-  if(!mlaMap[mla]){
-    mlaMap[mla]={
-      mla,
-      title:ad.title?.substring(0,45)||ad.mla||'-',
+  let rawMla = ad.mla ? ad.mla.toString() : '';
+  let parentMla = rawMla;
+  if(rawMla.includes('MLA')){
+    parentMla = rawMla.match(/MLA\d+/)?.[0] || rawMla;
+  }
+  
+  // Si no hay MLA, intentamos agrupar por un título base sin variantes (asumiendo que las variantes se agregan al final)
+  let baseTitle = ad.title || '-';
+  if(!parentMla && ad.title) {
+    // Buscar la publicación en allListings que comience igual
+    const listing = allListings.find(i => ad.title.startsWith(i.title));
+    if(listing) {
+      parentMla = listing.id;
+      baseTitle = listing.title;
+    } else {
+      // Remover patrones comunes de variantes al final (e.g. " Negro 31")
+      baseTitle = ad.title.replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Talle|Color|Cordura|Cuero|\d{2,3})[\s\d\w]*$/i, '').trim();
+    }
+  }
+
+  const mlaKey = parentMla || baseTitle || 'x';
+
+  if(!mlaMap[mlaKey]){
+    mlaMap[mlaKey]={
+      mla: parentMla || rawMla || 'x',
+      title: baseTitle.substring(0,45),
       clicks:0,sales:0,spend:0,impressions:0,
       roas:null,acos:null,
       campaign:camp.name,account:acc
