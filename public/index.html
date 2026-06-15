@@ -1565,7 +1565,7 @@ Object.values(mlaMap).forEach(pub=>{
       // Stock issues (Realtime API) — agrupar por título para evitar duplicados
 const titleSeen = new Set();
 camp.activeAds.forEach(ad=>{
- const titleKey = (ad.title?.substring(0,30) || ad.mla).replace(/\s*(negro|blanco|rojo|azul|gris|\d{2,3})\s*.*$/i,'').trim();
+ const titleKey = (ad.title?.substring(0,25)o|azul|gris|\d{2,3})\s*.*$/i,'').trim();
   if(titleSeen.has(titleKey)) return;
   titleSeen.add(titleKey);
   const rStock = S.realtimeStock[ad.mla];
