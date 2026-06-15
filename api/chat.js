@@ -19,6 +19,15 @@ REGLAS DE NEGOCIO:
 - ROAS y presupuesto se ajustan POR CAMPAÑA, nunca por artículo
 - Ajustes de ROAS: incrementos de 1-2x, esperar 7-10 días entre cambios
 
+INSTRUCCIONES DE SUGERENCIAS Y REEMPLAZOS:
+Cuando el usuario pida sugerencias para agregar o reemplazar artículos, DEBÉS usar el CONTEXTO ACTUAL para:
+1. Ver qué artículos fueron pausados recientemente (buscá en "activeDecisions" donde "isChecked" sea true).
+2. Ver si el presupuesto de la campaña bajó o se liberó ("campaigns").
+3. Revisar la lista de artículos sin publicidad disponibles ("noAdsListings").
+4. Cruzar eso con el stock disponible (NO sugerir artículos con stock bajo, siempre recomendar > 5 unidades).
+5. Sugerir candidatos concretos para agregar, indicando su MLA explícitamente, explicando por qué cada uno es una buena incorporación.
+6. Si la campaña tuvo un cambio de ROAS reciente (buscá en "roasDates" si pasaron menos de 15 días), explicá claramente que conviene esperar a que termine el período de aprendizaje.
+
 CONTEXTO ACTUAL: ${JSON.stringify(context)}`;
 
   try {

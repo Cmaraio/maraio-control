@@ -1799,13 +1799,38 @@ async function sendChat(){
     const stats=getCampaignStats(acc);
     const shared=detectSharedBudget(acc);
     Object.values(stats).forEach(c=>{
-      campSummary.push({account:acc,campaign:c.name,roas:Math.round(c.roas*10)/10,spend:Math.round(c.spend),revenue:Math.round(c.revenue),activeAds:c.activeAds.length,sharedBudget:shared});
+      const budget = S.campData[acc]?.[c.name]?.budget || Math.max(1, Math.round(c.spend/30));
+      const targetRoas = S.roasTargets[`${acc}_${c.name}`] || 15;
+      const status = S.campData[acc]?.[c.name]?.status || 'Activa';
+      campSummary.push({account:acc,campaign:c.name,status,roas:Math.round(c.roas*10)/10,acos:c.acos?Math.round(c.acos*10)/10:null,spend:Math.round(c.spend),revenue:Math.round(c.revenue),budget,targetRoas,activeAds:c.activeAds.length,sharedBudget:shared});
     });
+  });
+
+  // Decisions / Checklist context
+  const activeDecisions = [];
+  ['maraio','maraio2'].forEach(acc=>{
+    (allDecisions[acc]||[]).forEach(d=>{
+      const isChecked = !!(checklist[acc]||{})[d.id];
+      activeDecisions.push({account:acc, category:d.category, action:d.action, mla:d.mla, campaign:d.campaign, detail:d.detail, isChecked});
+    });
+  });
+
+  // No Ads Listings context (limit to top 50, stock > 5)
+  const noAdsListings = [];
+  ['maraio','maraio2'].forEach(acc=>{
+    const adsSet = new Set(S.ads[acc].map(a=>a.mla));
+    allListings.filter(i=>i.account===acc && i.status==='active' && i.available_quantity>5 && !adsSet.has(i.id))
+      .slice(0,50).forEach(i=>{
+        noAdsListings.push({account:acc, mla:i.id, title:i.title, stock:i.available_quantity, price:i.price});
+      });
   });
 
   const ctx={
     accounts:{maraio:{connected:S.accounts.maraio.connected},maraio2:{connected:S.accounts.maraio2.connected}},
     campaigns:campSummary,
+    activeDecisions,
+    noAdsListings,
+    roasDates: S.roasDates,
     totalListings:allListings.length,
     conflicts:countConflicts(),
     learnedContent:learnedContent.map(l=>({url:l.url,summary:l.summary.substring(0,500)})),
