@@ -23,10 +23,12 @@ INSTRUCCIONES DE SUGERENCIAS Y REEMPLAZOS:
 Cuando el usuario pida sugerencias para agregar o reemplazar artículos, DEBÉS usar el CONTEXTO ACTUAL para:
 1. Ver qué artículos fueron pausados recientemente (buscá en "activeDecisions" donde "isChecked" sea true).
 2. Ver si el presupuesto de la campaña bajó o se liberó ("campaigns").
-3. Revisar la lista de artículos sin publicidad disponibles ("noAdsListings").
+3. Revisar la lista de artículos sin publicidad disponibles en "activeListingsContext".
 4. Cruzar eso con el stock disponible (NO sugerir artículos con stock bajo, siempre recomendar > 5 unidades).
-5. Sugerir candidatos concretos para agregar, indicando su MLA explícitamente, explicando por qué cada uno es una buena incorporación.
-6. Si la campaña tuvo un cambio de ROAS reciente (buscá en "roasDates" si pasaron menos de 15 días), explicá claramente que conviene esperar a que termine el período de aprendizaje.
+5. REGLA DE CONFLICTO DE SKU: Antes de sugerir un candidato, verificá que NINGUNO de los SKUs de sus variantes (en "skus") exista en "activeListingsContext" de la OTRA cuenta. Si hay coincidencia, descartalo y buscá otro.
+6. Sugerir candidatos concretos indicando el MLA PADRE (no un ID de variante), el título, precio y stock total. Confirmá en tu mensaje que validaste la ausencia de conflictos de SKU.
+7. Explicar por qué cada uno es una buena incorporación.
+8. Si la campaña tuvo un cambio de ROAS reciente (buscá en "roasDates" si pasaron menos de 15 días), explicá claramente que conviene esperar a que termine el período de aprendizaje.
 
 CONTEXTO ACTUAL: ${JSON.stringify(context)}`;
 

@@ -1984,11 +1984,25 @@ async function sendChat(){
       });
   });
 
+  // Active Listings context with SKUs (limit to 100 for context size)
+  const activeListingsContext = allListings.filter(i => i.status === 'active').slice(0, 100).map(i => {
+    let variantSkus = [];
+    if(i.variations) {
+      i.variations.forEach(v => {
+        const attr = (v.attributes || []).find(a => a.id === 'SELLER_SKU' || a.id === 'SKU');
+        if(attr?.value_name) variantSkus.push(attr.value_name);
+      });
+    }
+    const skus = [...new Set([i.sku, ...variantSkus])].filter(s => s && s !== '—');
+    return { mla: i.id, title: i.title, account: i.account, price: i.price, stock: i.available_quantity, skus };
+  });
+
   const ctx={
     accounts:{maraio:{connected:S.accounts.maraio.connected},maraio2:{connected:S.accounts.maraio2.connected}},
     campaigns:campSummary,
     activeDecisions,
     noAdsListings,
+    activeListingsContext,
     roasDates: S.roasDates,
     totalListings:allListings.length,
     conflicts:countConflicts(),
@@ -2015,8 +2029,17 @@ async function sendChat(){
         ['maraio','maraio2'].forEach(acc=>{
           const listing=allListings.find(i=>i.id===mla&&i.account===acc);
           if(listing&&!S.chatAddItems[acc].find(i=>i.mla===mla)){
-            S.chatAddItems[acc].push({mla,title:listing.title||mla,detail:`Sugerido por el asistente. Precio: $${listing.price?.toLocaleString('es-AR')} · Stock: ${listing.available_quantity}u.`});
-            toast(`💬 "${listing.title?.substring(0,30)}" agregado a la lista de ${acc}`,'success');
+            const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
+            const listingSkus = activeListingsContext.find(l => l.mla === mla)?.skus || [];
+            const activeOtherSkus = activeListingsContext.filter(l => l.account === otherAcc).flatMap(l => l.skus);
+            const hasConflict = listingSkus.some(s => activeOtherSkus.includes(s));
+            
+            if (hasConflict) {
+              addMsg('ai', `⚠️ No puedo agregar el artículo ${mla} porque generaría un conflicto de SKU con la otra cuenta.`);
+            } else {
+              S.chatAddItems[acc].push({mla,title:listing.title||mla,detail:`Sugerido por el asistente. Precio: $${listing.price?.toLocaleString('es-AR')} · Stock: ${listing.available_quantity}u.`});
+              toast(`💬 "${listing.title?.substring(0,30)}" agregado a la lista de ${acc}`,'success');
+            }
           }
         });
       });
