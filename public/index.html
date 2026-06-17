@@ -2469,11 +2469,11 @@ function closeSidebar(){
 <script>
 function downloadDebug() {
   const data = JSON.stringify({allListings, ads: S.ads}, null, 2);
-  const blob = new Blob([data], {type: 'application/json'});
+  const blob = new Blob([data], {type: 'text/plain'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'debug_maraio.json';
+  a.download = 'debug_maraio.txt';
   a.click();
 }
 </script>
