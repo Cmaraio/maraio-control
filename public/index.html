@@ -910,6 +910,7 @@ async function loadAllListings(){
 }
 
 function getSKU(item){
+  if(item.seller_custom_field) return item.seller_custom_field;
   if(item.attributes){const s=item.attributes.find(a=>a.id==='SELLER_SKU'||a.id==='SKU');if(s?.value_name)return s.value_name;}
   return item.seller_sku||item.id||'—';
 }
@@ -921,12 +922,16 @@ function getAllSKUs(item){
   
   if (item.variations && item.variations.length > 0) {
     item.variations.forEach(v => {
-      let vSku = v.seller_sku;
+      let vSku = v.seller_custom_field || v.seller_sku;
       if (!vSku && v.attributes) {
         const s = v.attributes.find(a => a.id === 'SELLER_SKU' || a.id === 'SKU');
         if (s?.value_name) vSku = s.value_name;
       }
-      if (vSku) skus.add(vSku);
+      if (!vSku && v.attribute_combinations) {
+        const s = v.attribute_combinations.find(a => a.id === 'SELLER_SKU' || a.id === 'SKU');
+        if (s?.value_name) vSku = s.value_name;
+      }
+      if (vSku) skus.add(String(vSku).trim().toUpperCase());
     });
   }
   if (skus.size === 0) skus.add(item.id);
