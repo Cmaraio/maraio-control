@@ -1740,6 +1740,9 @@ camp.activeAds.forEach(ad=>{
     });
 
     // ADD candidates from listings (not yet in ads of either account)
+    if(allListings.length && !consolidatedListings.length) {
+      buildConsolidatedListings();
+    }
     if(consolidatedListings.length){
       const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
       const activeOtherAds = (S.ads[otherAcc] || []).filter(a => a.status === 'Activo');
