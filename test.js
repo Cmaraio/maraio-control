@@ -1,559 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Maraio — Centro de Control ML</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#070A10;--surface:#0D1117;--surface2:#131A24;--surface3:#1A2233;
-  --border:#1E2D40;--border2:#243349;
-  --accent:#3B82F6;--accent2:#6366F1;--orange:#F97316;
-  --ar:59,130,246;--a2r:99,102,241;--or:249,115,22;
-  --green:#10B981;--gr:16,185,129;
-  --red:#EF4444;--rr:239,68,68;
-  --yellow:#F59E0B;--yr:245,158,11;
-  --text:#E8EEF8;--text2:#6B7FA3;--text3:#3D4F6B;
-  --sw:220px;--th:54px;--r:10px;--rs:6px;
-  --ease:cubic-bezier(.4,0,.2,1);
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:14px;min-height:100vh;-webkit-font-smoothing:antialiased;}
-/* ── TOPBAR ── */
-.topbar{background:rgba(13,17,23,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 20px;height:var(--th);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
-.logo{font-weight:800;font-size:15px;letter-spacing:-.6px;}.logo span{color:var(--accent);}
-.atabs{display:flex;gap:4px;margin-left:14px;}
-.atab{padding:4px 11px;border-radius:var(--rs);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px;transition:all .15s var(--ease);font-family:inherit;}
-.atab:hover{border-color:var(--border2);color:var(--text);}
-.atab .dot{width:6px;height:6px;border-radius:50%;background:var(--text3);transition:background .15s;}
-.atab.am{background:rgba(var(--ar),.12);border-color:rgba(var(--ar),.4);color:var(--accent);}.atab.am .dot{background:var(--accent);}
-.atab.am2{background:rgba(var(--a2r),.12);border-color:rgba(var(--a2r),.4);color:var(--accent2);}.atab.am2 .dot{background:var(--accent2);}
-.badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.2px;}
-.badge.ok{background:rgba(var(--gr),.12);color:var(--green);border:1px solid rgba(var(--gr),.25);}
-.badge.no{background:rgba(var(--rr),.1);color:var(--red);border:1px solid rgba(var(--rr),.2);}
-.menu-toggle{display:none;background:transparent;border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);cursor:pointer;width:34px;height:34px;align-items:center;justify-content:center;font-size:18px;margin-right:10px;flex-shrink:0;transition:all .15s var(--ease);}
-.menu-toggle:hover{border-color:var(--border2);color:var(--text);}
-/* ── BUTTONS ── */
-.btn{padding:7px 14px;border-radius:var(--rs);border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:all .15s var(--ease);}
-.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#2563eb;box-shadow:0 0 16px rgba(var(--ar),.35);transform:translateY(-1px);}
-.btn-s{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}.btn-s:hover{color:var(--text);border-color:var(--border2);background:var(--surface3);}
-.btn-sm{padding:4px 10px;font-size:11px;}
-.btn-ind{background:rgba(var(--a2r),.12);color:var(--accent2);border:1px solid rgba(var(--a2r),.3);}.btn-ind:hover{background:rgba(var(--a2r),.2);}
-/* ── LAYOUT ── */
-.layout{display:flex;height:calc(100vh - var(--th));}
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;backdrop-filter:blur(2px);}
-.sidebar-overlay.show{display:block;}
-.sidebar{width:var(--sw);background:var(--surface);border-right:1px solid var(--border);padding:8px 0 20px;flex-shrink:0;overflow-y:auto;transition:transform .24s var(--ease);}
-.sidebar-close{display:none;}
-.nav-sec{padding:16px 16px 5px;font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;}
-.nav-item{padding:8px 14px;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:9px;font-size:12px;font-weight:500;transition:all .12s var(--ease);border-left:2px solid transparent;margin:1px 0;}
-.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
-.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(var(--ar),.08);}
-.nav-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0;}
-.main{flex:1;overflow-y:auto;padding:22px 24px;}
-.screen{display:none;}.screen.active{display:block;animation:fadeUp .18s var(--ease);}
-@keyframes fadeUp{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
-/* ── CARDS ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;}
-.ph{margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-.ph h1{font-size:18px;font-weight:700;letter-spacing:-.3px;}.ph p{color:var(--text2);font-size:12px;margin-top:3px;}
-/* ── METRIC GRID ── */
-.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
-.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;transition:transform .15s var(--ease),border-color .15s;}
-.mc::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top right,rgba(var(--ar),.05) 0%,transparent 65%);pointer-events:none;}
-.mc:hover{transform:translateY(-1px);border-color:var(--border2);}
-.mlb{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;font-weight:600;}
-.mv{font-size:24px;font-weight:800;letter-spacing:-.8px;line-height:1;}
-.ms{font-size:11px;color:var(--text2);margin-top:5px;}
-.up{color:var(--green);}.dn{color:var(--red);}.nt{color:var(--yellow);}
-/* ── TABLE ── */
-.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px;}
-.th{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
-.th h3{font-size:13px;font-weight:600;}
-table{width:100%;border-collapse:collapse;}
-th{padding:9px 14px;text-align:left;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);font-weight:700;white-space:nowrap;background:var(--surface);}
-td{padding:10px 14px;border-bottom:1px solid rgba(30,41,59,.5);font-size:12px;vertical-align:middle;}
-tr:last-child td{border-bottom:none;}
-tr:hover td{background:rgba(255,255,255,.018);}
-/* ── TAGS ── */
-.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.2px;}
-.tg{background:rgba(var(--gr),.12);color:var(--green);}
-.tr{background:rgba(var(--rr),.1);color:var(--red);}
-.ty{background:rgba(var(--yr),.12);color:var(--yellow);}
-.to{background:rgba(var(--or),.12);color:var(--orange);}
-.tb{background:rgba(var(--ar),.12);color:var(--accent);}
-.ti{background:rgba(var(--a2r),.12);color:var(--accent2);}
-/* ── UPLOAD ── */
-.uz{border:2px dashed var(--border);border-radius:var(--r);padding:36px;text-align:center;cursor:pointer;transition:all .2s var(--ease);margin-bottom:14px;}
-.uz:hover,.uz.drag{border-color:var(--accent);background:rgba(var(--ar),.04);}
-/* ── EMPTY STATE ── */
-.es{text-align:center;padding:48px 20px;color:var(--text2);}
-.es .ei{font-size:34px;margin-bottom:10px;}
-.es h3{font-size:14px;color:var(--text);margin-bottom:5px;font-weight:600;}
-.es p{font-size:12px;max-width:280px;margin:0 auto;line-height:1.5;}
-/* ── LOADING ── */
-.loading{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:12px;padding:18px;justify-content:center;}
-.sp{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
-@keyframes spin{to{transform:rotate(360deg);}}
-/* ── TOASTS ── */
-.tc{position:fixed;bottom:18px;right:18px;z-index:400;display:flex;flex-direction:column;gap:6px;}
-.toast{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);padding:10px 14px;font-size:12px;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastIn .25s cubic-bezier(.34,1.56,.64,1);}
-@keyframes toastIn{from{transform:translateX(20px) scale(.96);opacity:0;}to{transform:none;opacity:1;}}
-.toast.success{border-left:3px solid var(--green);}.toast.error{border-left:3px solid var(--red);}.toast.info{border-left:3px solid var(--accent);}
-/* ── ACCOUNT TABS ── */
-.acctabs{display:flex;gap:1px;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:3px;}
-.acctab{flex:1;padding:7px;border-radius:5px;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);background:transparent;transition:all .15s var(--ease);text-align:center;font-family:inherit;}
-.acctab.active-m{background:rgba(var(--ar),.18);color:var(--accent);}
-.acctab.active-m2{background:rgba(var(--a2r),.18);color:var(--accent2);}
-/* ── CAMPAIGN CARDS ── */
-.camp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden;transition:border-color .15s;}
-.camp-card:hover{border-color:var(--border2);}
-.camp-header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:10px;}
-.camp-header:hover{background:rgba(255,255,255,.02);}
-.camp-name{font-weight:600;font-size:13px;flex:1;}
-.camp-metrics-mini{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-.camp-body{display:none;padding:0 0 12px;border-top:1px solid var(--border);}
-.camp-body.open{display:block;}
-/* ── DECISION CARDS ── */
-.dec-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;transition:border-color .15s var(--ease);}
-.dec-card:hover{border-color:var(--border2);}
-.dec-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
-.dec-body{flex:1;min-width:0;}
-.dec-title{font-weight:600;font-size:13px;margin-bottom:4px;}
-.dec-detail{font-size:11px;color:var(--text2);line-height:1.55;}
-.dec-action{flex-shrink:0;}
-.check-box{width:18px;height:18px;border:2px solid var(--border2);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s var(--ease);font-size:10px;}
-.check-box:hover{border-color:var(--accent);}
-.check-box.done{background:var(--green);border-color:var(--green);color:#fff;}
-/* ── PRICING ── */
-.ig{margin-bottom:12px;}
-.ig label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:500;}
-.ig input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:9px 11px;color:var(--text);font-size:13px;font-family:inherit;transition:border-color .15s;}
-.ig input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--ar),.1);}
-/* ── CONNECT ── */
-.acr{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface2);border-radius:var(--rs);border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s;}
-.acr:hover{border-color:var(--border2);}
-.acn{font-weight:600;display:flex;align-items:center;gap:7px;font-size:13px;}
-.pill{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;}
-.pp{background:rgba(var(--ar),.15);color:var(--accent);}.ps{background:rgba(var(--a2r),.15);color:var(--accent2);}
-.ci2{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:9px 10px;color:var(--text);font-family:monospace;font-size:11px;resize:none;transition:border-color .15s;}
-.ci2:focus{outline:none;border-color:var(--accent);}
-/* ── SKU ── */
-.conflict{background:rgba(var(--rr),.05)!important;}
-.sku-badge{font-size:10px;font-family:monospace;background:var(--surface2);padding:2px 7px;border-radius:3px;border:1px solid var(--border);}
-/* ── FILTERS ── */
-.fb{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
-.si{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:6px 11px;color:var(--text);font-size:12px;width:220px;font-family:inherit;transition:border-color .15s;}
-.si:focus{outline:none;border-color:var(--accent);}
-select.fs{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:6px 9px;color:var(--text2);font-size:11px;cursor:pointer;font-family:inherit;}
-/* ── ACC SELECTOR ── */
-.acc-sel{display:flex;gap:6px;margin-bottom:14px;align-items:center;}
-.acc-sel span{color:var(--text2);font-size:11px;font-weight:500;}
-.ab{padding:4px 11px;border-radius:var(--rs);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px;font-weight:500;font-family:inherit;transition:all .12s var(--ease);}
-.ab:hover{color:var(--text);border-color:var(--border2);}
-.ab.sam{background:rgba(var(--ar),.12);border-color:rgba(var(--ar),.4);color:var(--accent);}
-.ab.sam2{background:rgba(var(--a2r),.12);border-color:rgba(var(--a2r),.4);color:var(--accent2);}
-.ab.sboth{background:rgba(255,255,255,.06);border-color:var(--text3);color:var(--text);}
-/* ── CHAT ── */
-.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);max-height:680px;}
-.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;}
-.msg{max-width:80%;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.55;}
-.msg.user{background:var(--accent);color:#fff;align-self:flex-end;border-radius:8px 8px 0 8px;}
-.msg.ai{background:var(--surface2);color:var(--text);align-self:flex-start;border-radius:8px 8px 8px 0;border:1px solid var(--border);}
-.chat-input-row{display:flex;gap:8px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:10px;}
-.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 13px;color:var(--text);font-size:13px;resize:none;font-family:inherit;transition:border-color .15s;}
-.chat-input:focus{outline:none;border-color:var(--accent);}
-/* ── CHART ── */
-.ca{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;}
-.ca h3{font-size:13px;font-weight:600;margin-bottom:14px;}
-.cp{height:130px;display:flex;align-items:flex-end;gap:5px;padding-bottom:6px;}
-.bw{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
-.bar{width:100%;border-radius:3px 3px 0 0;cursor:pointer;transition:opacity .15s;}
-.bar:hover{opacity:.7!important;}
-.bl{font-size:9px;color:var(--text3);}
-/* ── CALENDAR ── */
-.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - 160px);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
-.cal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);}
-.cal-title{font-size:16px;font-weight:600;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);flex:1;overflow-y:auto;}
-.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);}
-.cal-dow > div{padding:8px;text-align:center;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;}
-.cal-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;min-height:90px;display:flex;flex-direction:column;gap:4px;}
-.cal-cell.other-month{background:rgba(0,0,0,.2);opacity:.55;}
-.cal-daynum{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:2px;text-align:right;}
-.cal-cell.today .cal-daynum{color:var(--accent);}
-.cal-evt{font-size:10px;padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .15s;}
-.cal-evt:hover{opacity:.8;}
-.cal-evt.past{opacity:.4;filter:grayscale(100%);}
-.cal-evt.eblue{background:rgba(var(--ar),.2);color:#60a5fa;border:1px solid rgba(var(--ar),.4);}
-.cal-evt.eyellow{background:rgba(var(--yr),.2);color:#fbbf24;border:1px solid rgba(var(--yr),.4);}
-.cal-evt.egreen{background:rgba(var(--gr),.2);color:#4ade80;border:1px solid rgba(var(--gr),.4);}
-.cal-evt.eorange{background:rgba(var(--or),.2);color:#fb923c;border:1px solid rgba(var(--or),.4);}
-.cal-evt.egray{background:rgba(255,255,255,.08);color:var(--text2);border:1px solid rgba(255,255,255,.15);}
-.cal-more{font-size:10px;color:var(--accent);cursor:pointer;text-align:center;padding:2px;margin-top:auto;}
-/* ── MODAL ── */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;}
-.modal-overlay.open{display:flex;}
-.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);width:360px;max-width:90%;box-shadow:0 20px 40px rgba(0,0,0,.5);animation:toastIn .2s var(--ease);}
-.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.modal-body{padding:18px;}
-/* ── RESPONSIVE ── */
-@media(max-width:1100px){.mg{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:768px){
-  .menu-toggle{display:flex;}
-  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:160;width:260px;transform:translateX(-100%);padding-top:0;box-shadow:8px 0 32px rgba(0,0,0,.6);}
-  .sidebar.open{transform:translateX(0);}
-  .sidebar-close{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;border-bottom:1px solid var(--border);margin-bottom:6px;}
-  .sidebar-close-title{font-weight:800;font-size:14px;}
-  .sidebar-close-btn{background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:22px;line-height:1;padding:0 2px;}
-  .main{padding:14px;}
-  .camp-metrics-mini{display:none;}
-  .si{width:100%;}
-  .fb{flex-direction:column;align-items:stretch;}
-}
-@media(max-width:480px){
-  .mg{grid-template-columns:1fr 1fr;}
-  .mv{font-size:20px;}
-  .topbar{padding:0 12px;}
-  .atabs{gap:3px;}
-  .atab{padding:3px 8px;font-size:10px;}
-  .main{padding:12px;}
-}
-</style>
-</head>
-<body>
 
-<div class="topbar">
-  <div style="display:flex;align-items:center;">
-    <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
-    <div class="logo">maraio<span>.</span>control</div>
-    <div class="atabs">
-      <button class="atab" id="tab-maraio" onclick="selAcc('maraio')"><span class="dot"></span>maraio</button>
-      <button class="atab" id="tab-maraio2" onclick="selAcc('maraio2')"><span class="dot"></span>maraio2</button>
-    </div>
-  </div>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <span class="badge no" id="conn-status">Sin conectar</span>
-    <button class="btn btn-s btn-sm" onclick="nav('connect');closeSidebar()">Cuentas</button>
-  </div>
-</div>
-
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
-<div class="layout">
-<div class="sidebar" id="sidebar">
-  <div class="sidebar-close">
-    <span class="sidebar-close-title">maraio<span style="color:var(--accent)">.</span>control</span>
-    <button class="sidebar-close-btn" onclick="closeSidebar()">×</button>
-  </div>
-  <div class="nav-sec">Principal</div>
-  <div class="nav-item active" onclick="nav('overview');closeSidebar()" id="nv-overview"><span class="nav-icon">📊</span>Resumen</div>
-  <div class="nav-item" onclick="nav('sku');closeSidebar()" id="nv-sku"><span class="nav-icon">🔗</span>Vista por SKU</div>
-  <div class="nav-item" onclick="nav('listings');closeSidebar()" id="nv-listings"><span class="nav-icon">📦</span>Publicaciones</div>
-  <div class="nav-item" onclick="nav('sales');closeSidebar()" id="nv-sales"><span class="nav-icon">💰</span>Ventas</div>
-  <div class="nav-sec">Publicidad</div>
-  <div class="nav-item" onclick="nav('ads');closeSidebar()" id="nv-ads"><span class="nav-icon">📈</span>Campañas</div>
-  <div class="nav-item" onclick="nav('decisions');closeSidebar()" id="nv-decisions"><span class="nav-icon">🎯</span>Recomendaciones</div>
-  <div class="nav-item" onclick="nav('calendar');closeSidebar()" id="nv-calendar"><span class="nav-icon">📅</span>Calendario</div>
-  <div class="nav-sec">Herramientas</div>
-  <div class="nav-item" onclick="nav('chat');closeSidebar()" id="nv-chat"><span class="nav-icon">💬</span>Asistente IA</div>
-  <div class="nav-item" onclick="nav('pricing');closeSidebar()" id="nv-pricing"><span class="nav-icon">🧮</span>Calculadora</div>
-  <div class="nav-item" onclick="nav('alerts');closeSidebar()" id="nv-alerts"><span class="nav-icon">🔔</span>Alertas</div>
-  <div class="nav-item" onclick="nav('connect');closeSidebar()" id="nv-connect"><span class="nav-icon">🔑</span>Conexión</div>
-</div>
-
-<div class="main">
-
-<!-- ═══ CONNECT ═══ -->
-<div class="screen active" id="sc-connect">
-<div style="max-width:520px;margin:30px auto;">
-  <div class="card">
-    <h2 style="font-size:16px;font-weight:600;margin-bottom:6px;">Conectar cuentas de Mercado Libre</h2>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">Autorizá cada cuenta por separado.</p>
-    <div class="acr">
-      <div class="acn"><span class="pill pp">Principal</span>maraio</div>
-      <div style="display:flex;gap:7px;align-items:center;"><span class="badge no" id="st-maraio">Desconectado</span><button class="btn btn-p btn-sm" onclick="startAuth('maraio')">Conectar</button></div>
-    </div>
-    <div class="acr">
-      <div class="acn"><span class="pill ps">Secundaria</span>maraio2</div>
-      <div style="display:flex;gap:7px;align-items:center;"><span class="badge no" id="st-maraio2">Desconectado</span><button class="btn btn-p btn-sm" onclick="startAuth('maraio2')">Conectar</button></div>
-    </div>
-  </div>
-  <div class="card" id="auth-step" style="display:none;">
-    <h2 id="auth-title" style="font-size:15px;font-weight:600;margin-bottom:6px;">Paso 2</h2>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Copiá la URL completa de la barra del navegador y pegala acá.</p>
-    <textarea class="ci2" id="redir-input" rows="3" placeholder="https://maraio.com.ar/callback?code=TG-..."></textarea>
-    <div style="display:flex;gap:7px;margin-top:10px;">
-      <button class="btn btn-p" onclick="processAuth()">Obtener token</button>
-      <button class="btn btn-s" onclick="cancelAuth()">Cancelar</button>
-    </div>
-    <div id="auth-loading" style="display:none;" class="loading"><div class="sp"></div>Conectando...</div>
-    <div id="auth-err" style="display:none;color:var(--red);font-size:12px;margin-top:8px;padding:8px;background:rgba(239,68,68,.05);border-radius:5px;"></div>
-  </div>
-  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:12px;">
-    <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Servidor activo</div>
-    <p style="font-size:11px;color:var(--text2);">App ID: 8285062642673402 · Tokens: guardados en disco</p>
-  </div>
-</div>
-</div>
-
-<!-- ═══ OVERVIEW ═══ -->
-<div class="screen" id="sc-overview">
-  <div class="ph"><div><h1>Resumen general</h1><p id="ov-sub">Cargando...</p></div><button class="btn btn-s btn-sm" onclick="loadOverview()">↻ Actualizar</button></div>
-  <div class="acc-sel"><span>Cuenta:</span>
-    <button class="ab sam" id="ab-maraio" onclick="setOvAcc('maraio')">maraio</button>
-    <button class="ab" id="ab-maraio2" onclick="setOvAcc('maraio2')">maraio2</button>
-    <button class="ab" id="ab-both" onclick="setOvAcc('both')">Ambas</button>
-  </div>
-  <div class="mg">
-    <div class="mc"><div class="mlb">Publicaciones activas</div><div class="mv" id="ov-active"><div class="sp"></div></div><div class="ms" id="ov-active-s">—</div></div>
-    <div class="mc"><div class="mlb">Ventas (30 días)</div><div class="mv" id="ov-sales"><div class="sp"></div></div><div class="ms" id="ov-sales-s">órdenes</div></div>
-    <div class="mc"><div class="mlb">Preguntas sin responder</div><div class="mv" id="ov-q"><div class="sp"></div></div><div class="ms" id="ov-q-s">—</div></div>
-    <div class="mc"><div class="mlb">Conflictos SKU</div><div class="mv dn" id="ov-conflicts">—</div><div class="ms">mismo SKU en ambas</div></div>
-  </div>
-  <div class="ca"><h3>Ventas últimos 7 días</h3><div class="cp" id="sales-chart"><div class="loading" style="width:100%;"><div class="sp"></div>Cargando...</div></div></div>
-  <div class="tw"><div class="th"><h3>Top publicaciones</h3></div><div id="top-body"><div class="loading"><div class="sp"></div>Cargando...</div></div></div>
-</div>
-
-<!-- ═══ SKU ═══ -->
-<div class="screen" id="sc-sku">
-  <div class="ph"><div><h1>Vista por SKU</h1><p>Artículos cruzados — conflictos detectados automáticamente</p></div><button class="btn btn-s btn-sm" onclick="loadSKU()">↻ Actualizar</button></div>
-  <div class="fb">
-    <input class="si" type="text" placeholder="Buscar SKU o título..." id="sku-search" oninput="filterSKU()">
-    <select class="fs" id="sku-filter" onchange="filterSKU()">
-      <option value="all">Todos</option><option value="conflict">Solo conflictos</option>
-      <option value="maraio">Solo maraio</option><option value="maraio2">Solo maraio2</option>
-    </select>
-  </div>
-  <div class="tw"><table>
-    <thead><tr><th>SKU</th><th>Título</th><th>maraio</th><th>maraio2</th><th>Precio</th><th>Stock total</th><th>Estado</th></tr></thead>
-    <tbody id="sku-tbody"><tr><td colspan="7"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
-  </table></div>
-</div>
-
-<!-- ═══ LISTINGS ═══ -->
-<div class="screen" id="sc-listings">
-  <div class="ph"><div><h1>Publicaciones</h1><p>Stock, precios y estado</p></div><button class="btn btn-s btn-sm" onclick="loadListings()">↻ Actualizar</button></div>
-  <div class="fb">
-    <input class="si" type="text" placeholder="Buscar título o MLA..." id="ls-search" oninput="filterListings()">
-    <select class="fs" id="ls-acc" onchange="filterListings()"><option value="all">Ambas</option><option value="maraio">maraio</option><option value="maraio2">maraio2</option></select>
-    <select class="fs" id="ls-stock" onchange="filterListings()"><option value="all">Todo stock</option><option value="low">Bajo (≤5)</option><option value="out">Sin stock</option></select>
-  </div>
-  <div class="tw"><table>
-    <thead><tr><th>MLA / Título</th><th>SKU</th><th>Cuenta</th><th>Precio</th><th>Stock</th><th>Estado</th></tr></thead>
-    <tbody id="ls-tbody"><tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
-  </table></div>
-</div>
-
-<!-- ═══ SALES ═══ -->
-<div class="screen" id="sc-sales">
-  <div class="ph"><div><h1>Ventas</h1><p>Últimas órdenes</p></div><button class="btn btn-s btn-sm" onclick="loadSales()">↻ Actualizar</button></div>
-  <div class="acc-sel"><span>Cuenta:</span>
-    <button class="ab sam" id="sb-maraio" onclick="setSalesAcc('maraio')">maraio</button>
-    <button class="ab" id="sb-maraio2" onclick="setSalesAcc('maraio2')">maraio2</button>
-  </div>
-  <div class="tw"><table>
-    <thead><tr><th>Orden</th><th>Fecha</th><th>Producto</th><th>SKU</th><th>Cant.</th><th>Total</th></tr></thead>
-    <tbody id="sales-tbody"><tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
-  </table></div>
-</div>
-
-<!-- ═══ ADS ═══ -->
-<div class="screen" id="sc-ads">
-  <div class="ph"><div><h1>Campañas publicitarias</h1><p>Analizá cada campaña por cuenta</p></div></div>
-  <!-- Account tabs -->
-  <div class="acctabs">
-    <button class="acctab active-m" id="adtab-maraio" onclick="setAdsAcc('maraio')">● maraio</button>
-    <button class="acctab" id="adtab-maraio2" onclick="setAdsAcc('maraio2')">● maraio2</button>
-  </div>
-  <!-- maraio panel -->
-  <div id="ads-panel-maraio">
-    <div class="card" style="padding:12px;margin-bottom:10px;">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:6px;">📋 Cargá los <strong>dos archivos</strong> de maraio: Reporte de anuncios + Reporte de campañas.</p>
-      <div id="files-list-maraio" style="display:none;"></div>
-    </div>
-    <div class="uz" id="uz-maraio" onclick="document.getElementById('ci-maraio').click()" ondragover="dragOver(event,'maraio')" ondragleave="dragLeave('maraio')" ondrop="dropFile(event,'maraio')">
-      <input type="file" id="ci-maraio" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio')">
-      <div style="font-size:24px;margin-bottom:6px;">📂</div>
-      <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio acá</div>
-      <div style="color:var(--text2);font-size:12px;">Podés cargar los 2 juntos · Acepta .xlsx y .csv</div>
-    </div>
-    <div id="ads-summary-maraio" style="display:none;">
-      <div class="mg" id="ads-metrics-maraio"></div>
-      <div id="camps-list-maraio"></div>
-      <button class="btn btn-s btn-sm" onclick="clearAds('maraio')" style="margin-top:4px;">Limpiar datos maraio</button>
-    </div>
-    <div id="ads-empty-maraio"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio</h3><p>Cargá los dos reportes de ML Ads</p></div></div>
-  </div>
-  <!-- maraio2 panel -->
-  <div id="ads-panel-maraio2" style="display:none;">
-    <div class="card" style="padding:12px;margin-bottom:10px;">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:6px;">📋 Cargá los <strong>dos archivos</strong> de maraio2: Reporte de anuncios + Reporte de campañas.</p>
-      <div id="files-list-maraio2" style="display:none;"></div>
-    </div>
-    <div class="uz" id="uz-maraio2" onclick="document.getElementById('ci-maraio2').click()" ondragover="dragOver(event,'maraio2')" ondragleave="dragLeave('maraio2')" ondrop="dropFile(event,'maraio2')">
-      <input type="file" id="ci-maraio2" accept=".csv,.xlsx,.xls" multiple onchange="handleFiles(this.files,'maraio2')">
-      <div style="font-size:24px;margin-bottom:6px;">📂</div>
-      <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Arrastrá los Excel de maraio2 acá</div>
-      <div style="color:var(--text2);font-size:12px;">Podés cargar los 2 juntos · Acepta .xlsx y .csv</div>
-    </div>
-    <div id="ads-summary-maraio2" style="display:none;">
-      <div class="mg" id="ads-metrics-maraio2"></div>
-      <div id="camps-list-maraio2"></div>
-      <button class="btn btn-s btn-sm" onclick="clearAds('maraio2')" style="margin-top:4px;">Limpiar datos maraio2</button>
-    </div>
-    <div id="ads-empty-maraio2"><div class="es"><div class="ei">📈</div><h3>Sin datos de maraio2</h3><p>Cargá los dos reportes de ML Ads</p></div></div>
-  </div>
-</div>
-
-<!-- ═══ DECISIONS ═══ -->
-<div class="screen" id="sc-decisions">
-  <div class="ph"><div><h1>Recomendaciones</h1><p>Análisis semanal por cuenta — sin conflictos de SKU</p></div><button class="btn btn-s btn-sm" onclick="buildDecisions()">↻ Recalcular</button></div>
-
-  <!-- Account switcher -->
-  <div class="acctabs">
-    <button class="acctab active-m" id="dectab-maraio" onclick="setDecAcc('maraio')">● maraio</button>
-    <button class="acctab" id="dectab-maraio2" onclick="setDecAcc('maraio2')">● maraio2</button>
-  </div>
-
-  <!-- maraio panel -->
-  <div id="dec-panel-maraio">
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
-      <button class="btn btn-p btn-sm" id="dtab-maraio-roas" onclick="showDecTab('maraio','roas')">📈 ROAS</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio-budget" onclick="showDecTab('maraio','budget')">💰 Presupuesto</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio-pause" onclick="showDecTab('maraio','pause')">⏸ Pausar</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio-add" onclick="showDecTab('maraio','add')">➕ Agregar</button>
-    </div>
-    <div id="dec-content-maraio"><div class="es"><div class="ei">🎯</div><h3>Sin datos de maraio</h3><p>Cargá el reporte de ML Ads de maraio en Campañas</p></div></div>
-    <div id="dec-checklist-maraio" style="display:none;margin-top:14px;">
-      <div class="tw">
-        <div class="th"><h3>✅ Checklist — maraio</h3><button class="btn btn-s btn-sm" onclick="clearChecklist('maraio')">Limpiar tildados</button></div>
-        <div id="checklist-body-maraio" style="padding:4px 0;"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- maraio2 panel -->
-  <div id="dec-panel-maraio2" style="display:none;">
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
-      <button class="btn btn-p btn-sm" id="dtab-maraio2-roas" onclick="showDecTab('maraio2','roas')">📈 ROAS</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio2-budget" onclick="showDecTab('maraio2','budget')">💰 Presupuesto</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio2-pause" onclick="showDecTab('maraio2','pause')">⏸ Pausar</button>
-      <button class="btn btn-s btn-sm" id="dtab-maraio2-add" onclick="showDecTab('maraio2','add')">➕ Agregar</button>
-    </div>
-    <div id="dec-content-maraio2"><div class="es"><div class="ei">🎯</div><h3>Sin datos de maraio2</h3><p>Cargá el reporte de ML Ads de maraio2 en Campañas</p></div></div>
-    <div id="dec-checklist-maraio2" style="display:none;margin-top:14px;">
-      <div class="tw">
-        <div class="th"><h3>✅ Checklist — maraio2</h3><button class="btn btn-s btn-sm" onclick="clearChecklist('maraio2')">Limpiar tildados</button></div>
-        <div id="checklist-body-maraio2" style="padding:4px 0;"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CALENDAR ═══ -->
-<div class="screen" id="sc-calendar">
-  <div class="ph"><div><h1>Calendario de Eventos</h1><p>Fechas de revisión automáticas según actividad</p></div></div>
-  <div class="acctabs">
-    <button class="acctab active-m" id="caltab-maraio" onclick="setCalAcc('maraio')">● maraio</button>
-    <button class="acctab" id="caltab-maraio2" onclick="setCalAcc('maraio2')">● maraio2</button>
-  </div>
-  <div class="cal-wrap">
-    <div class="cal-head">
-      <button class="btn btn-s btn-sm" onclick="navMonth(-1)">◀ Mes anterior</button>
-      <div class="cal-title" id="cal-title-label"></div>
-      <button class="btn btn-s btn-sm" onclick="navMonth(1)">Mes siguiente ▶</button>
-    </div>
-    <div class="cal-dow">
-      <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
-    </div>
-    <div class="cal-grid" id="cal-grid-body"></div>
-  </div>
-</div>
-
-<!-- Event Modal -->
-<div class="modal-overlay" id="evt-modal-bg" onclick="closeEvtModal()">
-  <div class="modal" id="evt-modal" onclick="event.stopPropagation()">
-    <div class="modal-head">
-      <h3 style="font-size:14px;font-weight:600;" id="evt-title"></h3>
-      <button class="btn btn-s btn-sm" onclick="closeEvtModal()" style="padding:2px 8px;">✕</button>
-    </div>
-    <div class="modal-body" id="evt-detail" style="font-size:13px;line-height:1.5;color:var(--text2);">
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CHAT ═══ -->
-<div class="screen" id="sc-chat">
-  <div class="ph"><div><h1>Asistente IA</h1><p>Consultá sobre campañas, márgenes o pegá links de ML para que aprenda</p></div></div>
-  <div class="card" style="padding:10px 14px;margin-bottom:10px;">
-    <p style="font-size:11px;margin-bottom:6px;color:var(--text2);">💡 "¿Qué campañas debo pausar?" · "Calculame el precio para costo $18.000" · "¿Hay conflictos de SKU?" · "¿Cuál es el ROAS objetivo ideal para Art caros?"</p>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <input type="text" id="chat-url-input" placeholder="Pegá un link de ML para que aprenda (ej: vendedores.mercadolibre.com.ar/...)" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-size:11px;">
-      <button class="btn btn-s btn-sm" onclick="learnFromUrl()">📖 Aprender</button>
-    </div>
-    <div id="url-loading" style="display:none;font-size:11px;color:var(--text2);margin-top:6px;">Leyendo el link...</div>
-  </div>
-  <div class="chat-wrap">
-    <div class="chat-msgs" id="chat-msgs"><div class="msg ai">¡Hola! Soy tu asistente de gestión para Maraio. Podés preguntarme sobre campañas, márgenes, SKUs o pegar links de ML para que aprenda las últimas actualizaciones. ¿En qué te ayudo?</div></div>
-    <div class="chat-input-row">
-      <textarea class="chat-input" id="chat-input" rows="2" placeholder="Escribí tu consulta..." onkeydown="chatKey(event)"></textarea>
-      <button class="btn btn-p" onclick="sendChat()" id="chat-send">Enviar</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ PRICING ═══ -->
-<div class="screen" id="sc-pricing">
-  <div class="ph"><div><h1>Calculadora de precios</h1><p>ML Argentina · Ropa y accesorios · 13% comisión · IVA incluido</p></div></div>
-  <div style="max-width:820px;">
-    <div class="card" style="margin-bottom:14px;">
-      <h2 style="font-size:14px;font-weight:600;margin-bottom:14px;">Datos del producto</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div class="ig"><label>Costo del producto (ARS)</label><input type="number" id="pc-cost" value="15000" oninput="calcP()"></div>
-        <div class="ig"><label>IIBB (%) — 0 a 10</label><input type="number" id="pc-iibb" value="3" min="0" max="10" oninput="calcP()"></div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-      <div class="card" style="border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.04);">
-        <div style="font-size:11px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Precio contado (40%)</div>
-        <div style="font-size:32px;font-weight:800;color:var(--green);" id="pc-r40">$0</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px;" id="pc-p40-label">Ganancia: $0</div>
-        <div style="font-size:10px;margin-top:3px;" id="pc-p40-badge"></div>
-      </div>
-      <div class="card" style="border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.04);">
-        <div style="font-size:11px;color:#6366f1;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Precio en cuotas (49%)</div>
-        <div style="font-size:32px;font-weight:800;color:#6366f1;" id="pc-r49">$0</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px;" id="pc-p49-label">Ganancia: $0</div>
-        <div style="font-size:10px;margin-top:3px;" id="pc-p49-badge"></div>
-      </div>
-    </div>
-    <div class="card">
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <button class="btn btn-p btn-sm" id="ptab-40" onclick="showPTab(40)">Desglose 40%</button>
-        <button class="btn btn-s btn-sm" id="ptab-49" onclick="showPTab(49)">Desglose 49%</button>
-      </div>
-      <div id="pc-break-40"></div>
-      <div id="pc-break-49" style="display:none;"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ ALERTS ═══ -->
-<div class="screen" id="sc-alerts">
-  <div class="ph"><div><h1>Alertas</h1><p>Stock crítico, conflictos SKU, ACOS fuera de rango</p></div><button class="btn btn-s btn-sm" onclick="buildAlerts()">↻ Actualizar</button></div>
-  <div id="alerts-list"><div class="es"><div class="ei">🔔</div><h3>Sin alertas</h3><p>Conectá las cuentas y cargá campañas</p></div></div>
-</div>
-
-</div></div>
-<div class="tc" id="tc"></div>
-
-<script>
 const API=''; // Vercel - uses relative paths
 let S={
   accounts:{maraio:{connected:false,userId:null},maraio2:{connected:false,userId:null}},
@@ -1521,16 +966,53 @@ function buildDecisions(){
 // Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
 const mlaMap={};
 camp.activeAds.forEach(ad=>{
-  // Agrupar por los primeros 20 caracteres del título
+  let rawMla = ad.mla ? ad.mla.toString().trim() : '';
+  let parentMla = null;
+
+  // Escanear TODAS las celdas del Excel (guardadas en ad) para encontrar el MLA padre
+  for(const val of Object.values(ad)) {
+    const strVal = String(val || '');
+    if(strVal.includes('MLA')) {
+      const match = strVal.match(/MLA\d+/);
+      if(match) {
+        parentMla = match[0];
+        break;
+      }
+    }
+  }
+  
+  if(!parentMla && rawMla.includes('MLA')){
+    parentMla = rawMla.match(/MLA\d+/)?.[0];
+  }
+  
+  // Si no se pudo obtener un MLA padre claro, forzamos la búsqueda por título
   let safeTitle = String(ad.title || '');
-  let baseTitle = safeTitle.substring(0, 20).trim();
-  const mlaKey = baseTitle || 'x';
+  let baseTitle = safeTitle || '-';
+  
+  if(!parentMla && safeTitle) {
+    const listing = allListings.find(i => {
+      const iTitle = String(i.title || '');
+      return iTitle && safeTitle.startsWith(iTitle);
+    });
+    if(listing) {
+      parentMla = listing.id;
+      baseTitle = listing.title;
+    } else {
+      // Limpieza agresiva de variantes (Talles, colores, " - ", etc)
+      baseTitle = safeTitle.replace(/\s*-\s*.*$/i, '')
+                           .replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Rosa|Verde|Amarillo|Beige|Marron|Color|Talle|Cm|Mm|Cordura|Cuero|\d{2,3})[\s\d\w]*$/i, '')
+                           .trim();
+    }
+  }
+
+  const mlaKey = parentMla || baseTitle || 'x';
 
   if(!mlaMap[mlaKey]){
     mlaMap[mlaKey]={
-      mla: ad.mla || 'x',
-      title: safeTitle.substring(0,45),
+      mla: parentMla || (rawMla.match(/^\d+$/) ? 'MLA'+rawMla : rawMla) || 'x',
+      title: baseTitle.substring(0,45),
       clicks:0,sales:0,spend:0,impressions:0,
+
       roas:null,acos:null,
       campaign:camp.name,account:acc
     };
@@ -1611,29 +1093,28 @@ Object.values(mlaMap).forEach(pub=>{
   }
 });
 
-      // Stock issues (Realtime API) — agrupar por título para evitar duplicados
-const titleSeen = new Set();
-camp.activeAds.forEach(ad=>{
- const titleKey = (ad.title?.substring(0,25) || ad.mla).replace(/\s*(negro|blanco|rojo|azul|gris|\d{2,3})\s*.*$/i,'').trim();
-  if(titleSeen.has(titleKey)) return;
-  titleSeen.add(titleKey);
-  const rStock = S.realtimeStock[ad.mla];
-  if(rStock){
-    if(rStock.stock === 0){
-      allDecisions[acc].push({icon:'🚫',type:'danger',category:'pause',action:'SIN STOCK',
-        title:`${ad.title?.substring(0,40)||ad.mla}`,
-        detail:`Sin stock en ${acc} pero el anuncio sigue activo en "${camp.name}". Pausalo inmediatamente.`,
-        priority:0,account:acc,mla:ad.mla,campaign:camp.name,id:'api_stock0_'+ad.mla+'_'+acc});
-    } else if(rStock.stock <= 15){
-      let det = `Stock disponible: ${rStock.stock} unidades. Considerá reponer antes de seguir invirtiendo en publicidad.`;
-      if(rStock.zeroVariants && rStock.zeroVariants.length) det += ` Variante(s) sin stock: ${rStock.zeroVariants.join(', ')}.`;
-      allDecisions[acc].push({icon:'⚠️',type:'orange',category:'pause',action:'STOCK BAJO',
-        title:`${ad.title?.substring(0,40)||ad.mla}`,
-        detail:det,
-        priority:0.5,account:acc,mla:ad.mla,campaign:camp.name,id:'api_lowstock_'+titleKey.replace(/[^a-z0-9]/gi,'_')+'_'+acc});
-    }
-  }
-});
+      // Stock issues (Realtime API)
+      const mlaSeen = new Set();
+      camp.activeAds.forEach(ad=>{
+        if(mlaSeen.has(ad.mla)) return;
+        mlaSeen.add(ad.mla);
+        const rStock = S.realtimeStock[ad.mla];
+        if(rStock){
+          if(rStock.stock === 0){
+            allDecisions[acc].push({icon:'🚫',type:'danger',category:'pause',action:'SIN STOCK',
+              title:`${ad.title?.substring(0,40)||ad.mla}`,
+              detail:`Sin stock en ${acc} pero el anuncio sigue activo en "${camp.name}". Pausalo inmediatamente.`,
+              priority:0,account:acc,mla:ad.mla,campaign:camp.name,id:'api_stock0_'+ad.mla+'_'+acc});
+          } else if(rStock.stock <= 15){
+            let det = `Stock disponible: ${rStock.stock} unidades. Considerá reponer antes de seguir invirtiendo en publicidad.`;
+            if(rStock.zeroVariants && rStock.zeroVariants.length) det += ` Variante(s) sin stock: ${rStock.zeroVariants.join(', ')}.`;
+            allDecisions[acc].push({icon:'⚠️',type:'orange',category:'pause',action:'STOCK BAJO',
+              title:`${ad.title?.substring(0,40)||ad.mla}`,
+              detail:det,
+              priority:0.5,account:acc,mla:ad.mla,campaign:camp.name,id:'api_lowstock_'+ad.mla+'_'+acc});
+          }
+        }
+      });
     });
 
     // ADD candidates from listings (not yet in ads of either account)
@@ -2122,22 +1603,3 @@ checkStatus().then(async ()=>{
   renderCalendar();
   buildDecisions();
 });
-
-function toggleSidebar(){
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebar-overlay').classList.toggle('show');
-}
-function closeSidebar(){
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('show');
-}
-</script>
-<div id="evt-modal-bg" class="modal-bg" onclick="closeEvtModal()">
-  <div class="modal-card" onclick="event.stopPropagation()">
-    <div id="evt-title" style="font-weight:700;font-size:16px;margin-bottom:10px;"></div>
-    <div id="evt-detail" style="font-size:13px;color:var(--text2);margin-bottom:20px;"></div>
-    <button class="btn btn-p" onclick="closeEvtModal()">Cerrar</button>
-  </div>
-</div>
-</body>
-</html>
