@@ -1012,7 +1012,7 @@ function buildConsolidatedListings() {
   consolidatedListings = Object.values(map).map(g => {
     const adsInThisAcc = S.ads[g.account] || [];
     g.skusArray = Array.from(g.skus);
-    g.hasAds = adsInThisAcc.some(a => (g.variants.includes(a.mla) || g.allMlas.includes(a.mla) || getProductGroupKey(a.title, a.mla) === g.titleKey));
+    g.hasAds = adsInThisAcc.some(a => a.status && a.status.toLowerCase().startsWith('activ') && (g.variants.includes(a.mla) || g.allMlas.includes(a.mla) || getProductGroupKey(a.title, a.mla) === g.titleKey));
     return g;
   });
 }
@@ -1866,7 +1866,7 @@ camp.activeAds.forEach(ad=>{
     }
     if(consolidatedListings.length){
       const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
-      const activeOtherAds = S.ads[otherAcc] || []; // Consideramos todos los anuncios, no solo los activos, para no sugerir cosas que ya están en campañas
+      const activeOtherAds = (S.ads[otherAcc] || []).filter(a => a.status && a.status.toLowerCase().startsWith('activ'));
       
       const activeOtherSkus = new Set();
       activeOtherAds.forEach(a => {
