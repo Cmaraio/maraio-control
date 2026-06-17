@@ -1278,6 +1278,7 @@ function parseMLReport(text,filename,format,acc){
       row['raw_col_' + i] = vals[i] || ''; // Save all raw columns to ensure no data is lost
     });
     if(row.parent_mla) row.mla = row.parent_mla;
+    if(row.mla) row.mla = String(row.mla).replace(/[^a-zA-Z0-9]/g, '');
     if(!row.mla&&!row.campaign)continue;
     ['impressions','clicks','cpc','ctr','cvr','revenue','spend','acos','roas','direct_sales','indirect_sales','total_sales','direct_revenue','indirect_revenue'].forEach(f=>{
       const v=String(row[f]||'').replace(/[^0-9.,\-]/g,'').replace(',','.');
