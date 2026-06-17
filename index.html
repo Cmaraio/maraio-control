@@ -322,7 +322,14 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
 
 <!-- ═══ SKU ═══ -->
 <div class="screen" id="sc-sku">
-  <div class="ph"><div><h1>Vista por SKU</h1><p>Artículos cruzados — conflictos detectados automáticamente</p></div><button class="btn btn-s btn-sm" onclick="loadSKU()">↻ Actualizar</button></div>
+  <div class="ph">
+    <div><h1>Vista por SKU</h1><p>Artículos cruzados — conflictos detectados automáticamente</p></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-s btn-sm" onclick="document.getElementById('sku-upload').click()">📂 Cargar SKUs (Excel)</button>
+      <input type="file" id="sku-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleSKUUpload(this.files)">
+      <button class="btn btn-s btn-sm" onclick="loadSKU()">↻ Actualizar</button>
+    </div>
+  </div>
   <div class="fb">
     <input class="si" type="text" placeholder="Buscar SKU o título..." id="sku-search" oninput="filterSKU()">
     <select class="fs" id="sku-filter" onchange="filterSKU()">
@@ -566,7 +573,7 @@ let S={
   budgetDates:JSON.parse(localStorage.getItem('maraio_budget_dates')||'{}'),
   addDates:JSON.parse(localStorage.getItem('maraio_add_dates')||'{}'),
   chatAddItems:{maraio:[],maraio2:[]},
-  skuOverrides:{},chatHistory:[],
+  skuOverrides:JSON.parse(localStorage.getItem('maraio_sku_overrides')||'{}'),chatHistory:[],
   realtimeStock:JSON.parse(localStorage.getItem('maraio_r_stock')||'{}')
 };
 let allListings=[],skuMap={};
@@ -825,6 +832,54 @@ async function loadSKU(){
   buildSKUMap();filterSKU();$('ov-conflicts').textContent=countConflicts();
 }
 
+function handleSKUUpload(files){
+  if(!files.length)return;
+  const f = files[0];
+  if(typeof XLSX==='undefined'){
+    const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>parseSKUFile(f);document.head.appendChild(s);
+  }else parseSKUFile(f);
+}
+
+function parseSKUFile(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let headerRow=-1;
+      for(let i=0;i<Math.min(raw.length,10);i++){
+        const rowStr=raw[i].map(c=>String(c).toLowerCase()).join('|');
+        if(rowStr.includes('sku')||rowStr.includes('publicaci')){headerRow=i;break;}
+      }
+      if(headerRow===-1){toast('No se detectaron columnas de SKU o ID en el archivo','error');return;}
+      
+      const headers=raw[headerRow].map(h=>String(h).trim().toLowerCase());
+      const mlaIdx = headers.findIndex(h=>h.includes('mla')||h.includes('publicaci')||h.includes('item'));
+      const skuIdx = headers.findIndex(h=>h.includes('sku')||h.includes('referencia')||h==='sku');
+      
+      if(mlaIdx===-1 || skuIdx===-1){toast('No se encontraron las columnas de ID y SKU','error');return;}
+      
+      let count=0;
+      for(let i=headerRow+1;i<raw.length;i++){
+        const row=raw[i];
+        let mla=String(row[mlaIdx]||'').trim();
+        let sku=String(row[skuIdx]||'').trim();
+        if(mla && sku && sku!=='-'){
+          if(!mla.startsWith('MLA') && !isNaN(mla) && mla!=='') mla='MLA'+mla;
+          S.skuOverrides[mla] = sku;
+          count++;
+        }
+      }
+      localStorage.setItem('maraio_sku_overrides', JSON.stringify(S.skuOverrides));
+      toast(`✅ Se cargaron ${count} SKUs correctamente. Actualizando...`,'success');
+      loadSKU(); // reload
+    }catch(err){toast('Error leyendo archivo: '+err.message,'error');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 async function loadAllListings(){
   allListings=[];
   const accs=['maraio','maraio2'].filter(a=>S.accounts[a].connected);
@@ -841,6 +896,7 @@ async function loadAllListings(){
 }
 
 function getSKU(item){
+  if(S.skuOverrides[item.id]) return S.skuOverrides[item.id];
   if(item.seller_sku) return item.seller_sku;
   if(item.seller_custom_field) return item.seller_custom_field;
   if(item.attributes){const s=item.attributes.find(a=>a.id==='SELLER_SKU'||a.id==='SKU');if(s?.value_name)return s.value_name;}
