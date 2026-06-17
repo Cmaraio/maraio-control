@@ -1740,23 +1740,46 @@ camp.activeAds.forEach(ad=>{
     });
 
     // ADD candidates from listings (not yet in ads of either account)
-    if(allListings.length){
-      const adsInThisAcc=new Set(S.ads[acc].map(a=>a.mla));
-      const otherAcc=acc==='maraio'?'maraio2':'maraio';
-      const adsInOtherAcc=new Set(S.ads[otherAcc].filter(a=>a.status==='Activo').map(a=>a.mla));
-      allListings.filter(i=>i.account===acc&&i.status==='active'&&i.available_quantity>5&&!adsInThisAcc.has(i.id)&&!adsInOtherAcc.has(i.id)).slice(0,5).forEach(i=>{
-        const priceLabel=i.price>=40000?'Alto margen (≥$40k)':'Precio bajo $40k';
-        allDecisions[acc].push({icon:'➕',type:'info',category:'add',action:'CANDIDATO',
-          title:`${i.title?.substring(0,45)}`,
-          detail:`Sin campaña activa en ${acc} ni en ${otherAcc}. ${priceLabel} · $${i.price?.toLocaleString('es-AR')} · Stock: ${i.available_quantity}u. Agregalo a la campaña más afín si tiene ventas orgánicas.`,
-          priority:3,account:acc,mla:i.id,id:'add_'+i.id+'_'+acc});
+    if(consolidatedListings.length){
+      const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
+      const activeOtherAds = (S.ads[otherAcc] || []).filter(a => a.status === 'Activo');
+      
+      const activeOtherSkus = [];
+      activeOtherAds.forEach(a => {
+        const adListing = allListings.find(i => i.id === a.mla && i.account === otherAcc);
+        if(adListing && adListing.sku) activeOtherSkus.push(adListing.sku);
+      });
+
+      const candidates = consolidatedListings.filter(i => 
+        i.account === acc && 
+        i.status === 'active' && 
+        i.stock > 5 && 
+        !i.hasAds && 
+        !i.skusArray.some(s => activeOtherSkus.includes(s))
+      );
+
+      // Ordenar por ventas descendente y luego stock descendente
+      candidates.sort((a, b) => {
+        if (b.sold_quantity !== a.sold_quantity) return b.sold_quantity - a.sold_quantity;
+        return b.stock - a.stock;
+      });
+
+      candidates.slice(0, 15).forEach(i => {
+        const priceLabel = i.price >= 40000 ? 'Alto margen (≥$40k)' : 'Precio bajo $40k';
+        const roasObj = i.price >= 40000 ? '20x' : '15x';
+        allDecisions[acc].push({
+          icon: '➕', type: 'info', category: 'add', action: 'CANDIDATO IDEAL',
+          title: `${i.title?.substring(0, 45)}`,
+          detail: `Sin campaña activa ni conflicto de SKU. ${priceLabel} · $${i.price?.toLocaleString('es-AR')} · Ventas: ${i.sold_quantity} · Stock: ${i.stock}u. Ideal para sumar con ROAS ${roasObj}.`,
+          priority: 3.5, account: acc, mla: i.mla, id: 'add_' + i.mla + '_' + acc
+        });
       });
     }
 
-    // ADD items suggested from chat
+    // ADD items suggested from chat or manual
     (S.chatAddItems[acc]||[]).forEach(item=>{
-      allDecisions[acc].push({icon:'💬',type:'info',category:'add',action:'SUGERIDO POR CHAT',
-        title:item.title,detail:item.detail,priority:3,account:acc,mla:item.mla,id:'chat_add_'+item.mla+'_'+acc});
+      allDecisions[acc].push({icon:'📋',type:'ok',category:'add',action:'LISTO PARA AGREGAR',
+        title:item.title,detail:`Este ítem fue seleccionado (desde Publicaciones o Chat) para agregar a Ads. ` + item.detail,priority:3,account:acc,mla:item.mla,id:'chat_add_'+item.mla+'_'+acc});
     });
 
     allDecisions[acc].sort((a,b)=>a.priority-b.priority);
