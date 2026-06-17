@@ -1888,14 +1888,33 @@ camp.activeAds.forEach(ad=>{
         }
       });
 
-      let candidates = consolidatedListings.filter(i => 
-        i.account === acc && 
-        i.status === 'active' && 
-        i.stock > 5 && 
-        !i.hasAds && 
-        !i.skusArray.some(s => activeOtherSkus.has(String(s).trim().toUpperCase())) &&
-        !i.allMlas.some(m => S.ignoredRecs.has(m))
-      );
+      let candidates = consolidatedListings.filter(i => {
+        if(i.account !== acc || i.status !== 'active' || i.stock <= 5 || i.hasAds) return false;
+        if(i.skusArray.some(s => activeOtherSkus.has(String(s).trim().toUpperCase()))) return false;
+        if(i.allMlas.some(m => S.ignoredRecs.has(m))) return false;
+
+        // Evitar sugerir el mismo candidato libre en ambas cuentas (desempate por métricas)
+        const mySkus = i.skusArray.map(s => String(s).trim().toUpperCase());
+        const twins = consolidatedListings.filter(twin => 
+          twin.account === otherAcc &&
+          twin.status === 'active' &&
+          twin.stock > 5 &&
+          !twin.hasAds &&
+          twin.skusArray.some(ts => mySkus.includes(String(ts).trim().toUpperCase()))
+        );
+        
+        if (twins.length > 0) {
+          const bestTwin = twins.sort((a,b) => {
+            if(b.sold_quantity !== a.sold_quantity) return b.sold_quantity - a.sold_quantity;
+            return b.stock - a.stock;
+          })[0];
+          
+          if (bestTwin.sold_quantity > i.sold_quantity) return false; // El otro vende más
+          if (bestTwin.sold_quantity === i.sold_quantity && bestTwin.stock > i.stock) return false; // El otro tiene más stock
+          if (bestTwin.sold_quantity === i.sold_quantity && bestTwin.stock === i.stock && otherAcc < acc) return false; // Empate absoluto, prioriza alfabético
+        }
+        return true;
+      });
 
       // Ordenar por ventas descendente y luego stock descendente
       candidates.sort((a, b) => {
