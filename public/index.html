@@ -343,9 +343,11 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
     <input class="si" type="text" placeholder="Buscar título o MLA..." id="ls-search" oninput="filterListings()">
     <select class="fs" id="ls-acc" onchange="filterListings()"><option value="all">Ambas</option><option value="maraio">maraio</option><option value="maraio2">maraio2</option></select>
     <select class="fs" id="ls-stock" onchange="filterListings()"><option value="all">Todo stock</option><option value="low">Bajo (≤5)</option><option value="out">Sin stock</option></select>
+    <select class="fs" id="ls-ads" onchange="filterListings()"><option value="all">Ads: Todos</option><option value="with_ads">Con Ads</option><option value="without_ads">Sin Ads</option></select>
     <select class="fs" id="ls-sort" onchange="filterListings()">
       <option value="none">Orden: Por defecto</option>
       <option value="sales">Más ventas históricas</option>
+      <option value="visits">Más visitas</option>
       <option value="stock">Más stock</option>
       <option value="price_desc">Mayor precio</option>
       <option value="price_asc">Menor precio</option>
@@ -850,11 +852,27 @@ async function loadAllListings(){
       // Batch fetch items to avoid rate limits and slow loading (ML supports up to 20 per request)
       for(let i=0; i<d.results.length; i+=20){
         const batch = d.results.slice(i, i+20);
-        const batchRes = await apiGet(acc, `/items?ids=${batch.join(',')}`);
+        const batchResPromise = apiGet(acc, `/items?ids=${batch.join(',')}`);
+        const visitsResPromise = apiGet(acc, `/items/visits?ids=${batch.join(',')}`);
+        
+        const [batchRes, visitsRes] = await Promise.all([batchResPromise, visitsResPromise]);
+        
+        const visitsMap = {};
+        if (visitsRes) {
+          if (Array.isArray(visitsRes)) {
+            visitsRes.forEach(v => {
+              if(v && v.item_id) visitsMap[v.item_id] = v.visits || 0;
+            });
+          } else {
+            Object.keys(visitsRes).forEach(k => visitsMap[k] = visitsRes[k]);
+          }
+        }
+
         if(batchRes && Array.isArray(batchRes)){
           batchRes.forEach(r => {
             if(r.code === 200 && r.body) {
-              allListings.push({...r.body, account:acc, sku:getSKU(r.body)});
+              const body = r.body;
+              allListings.push({...body, account:acc, sku:getSKU(body), visits: visitsMap[body.id] || 0});
             }
           });
         }
@@ -932,6 +950,7 @@ function buildConsolidatedListings() {
     
     map[key].stock += i.available_quantity;
     map[key].sold_quantity += (i.sold_quantity || 0);
+    map[key].visits += (i.visits || 0);
     map[key].variants.push(i.id);
     if(i.sku) map[key].skus.add(i.sku);
     if(i.status === 'active') map[key].status = 'active';
@@ -947,16 +966,20 @@ function buildConsolidatedListings() {
 
 function filterListings(){
   const s=$('ls-search').value.toLowerCase();const acc=$('ls-acc').value;const stk=$('ls-stock').value;
+  const adsF=$('ls-ads')?$('ls-ads').value:'all';
   let items=consolidatedListings.filter(i=>{
     if(s&&!i.title?.toLowerCase().includes(s)&&!i.mla?.toLowerCase().includes(s)&&!i.skusArray.some(sk=>sk.toLowerCase().includes(s)))return false;
     if(acc!=='all'&&i.account!==acc)return false;
     if(stk==='low'&&i.stock>5)return false;
     if(stk==='out'&&i.stock>0)return false;
+    if(adsF==='with_ads'&&!i.hasAds)return false;
+    if(adsF==='without_ads'&&i.hasAds)return false;
     return true;
   });
   
   const sort = $('ls-sort') ? $('ls-sort').value : 'none';
   if(sort === 'sales') items.sort((a,b) => b.sold_quantity - a.sold_quantity);
+  else if(sort === 'visits') items.sort((a,b) => b.visits - a.visits);
   else if(sort === 'stock') items.sort((a,b) => b.stock - a.stock);
   else if(sort === 'price_desc') items.sort((a,b) => b.price - a.price);
   else if(sort === 'price_asc') items.sort((a,b) => a.price - b.price);
@@ -976,7 +999,7 @@ function filterListings(){
       <td><span class="tag ${i.account==='maraio'?'tb':'ti'}">${i.account}</span></td>
       <td>$${i.price?.toLocaleString('es-AR')}</td>
       <td>${i.sold_quantity}</td>
-      <td>—</td>
+      <td>${i.visits}</td>
       <td><span style="color:${sc};font-weight:600;">${i.stock}</span></td>
       <td>${adsBadge}</td>
       <td>${btnHtml}</td>
