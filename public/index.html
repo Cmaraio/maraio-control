@@ -343,6 +343,13 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
     <input class="si" type="text" placeholder="Buscar título o MLA..." id="ls-search" oninput="filterListings()">
     <select class="fs" id="ls-acc" onchange="filterListings()"><option value="all">Ambas</option><option value="maraio">maraio</option><option value="maraio2">maraio2</option></select>
     <select class="fs" id="ls-stock" onchange="filterListings()"><option value="all">Todo stock</option><option value="low">Bajo (≤5)</option><option value="out">Sin stock</option></select>
+    <select class="fs" id="ls-sort" onchange="filterListings()">
+      <option value="none">Orden: Por defecto</option>
+      <option value="sales">Más ventas históricas</option>
+      <option value="stock">Más stock</option>
+      <option value="price_desc">Mayor precio</option>
+      <option value="price_asc">Menor precio</option>
+    </select>
   </div>
   
   <div id="ls-selected-wrap" style="display:none;margin-bottom:14px;">
@@ -840,7 +847,18 @@ async function loadAllListings(){
     while(hasMore&&offset<500){
       const d=await apiGet(acc,`/users/${uid}/items/search?status=active&limit=50&offset=${offset}`);
       if(!d?.results?.length){hasMore=false;break;}
-      for(const id of d.results){const item=await apiGet(acc,`/items/${id}`);if(item)allListings.push({...item,account:acc,sku:getSKU(item)});}
+      // Batch fetch items to avoid rate limits and slow loading (ML supports up to 20 per request)
+      for(let i=0; i<d.results.length; i+=20){
+        const batch = d.results.slice(i, i+20);
+        const batchRes = await apiGet(acc, `/items?ids=${batch.join(',')}`);
+        if(batchRes && Array.isArray(batchRes)){
+          batchRes.forEach(r => {
+            if(r.code === 200 && r.body) {
+              allListings.push({...r.body, account:acc, sku:getSKU(r.body)});
+            }
+          });
+        }
+      }
       offset+=50;if(offset>=(d.paging?.total||0))hasMore=false;
     }
   }
@@ -937,6 +955,13 @@ function filterListings(){
     if(stk==='out'&&i.stock>0)return false;
     return true;
   });
+  
+  const sort = $('ls-sort') ? $('ls-sort').value : 'none';
+  if(sort === 'sales') items.sort((a,b) => b.sold_quantity - a.sold_quantity);
+  else if(sort === 'stock') items.sort((a,b) => b.stock - a.stock);
+  else if(sort === 'price_desc') items.sort((a,b) => b.price - a.price);
+  else if(sort === 'price_asc') items.sort((a,b) => a.price - b.price);
+
   const tbody=$('ls-tbody');
   if(!items.length){tbody.innerHTML='<tr><td colspan="8"><div class="es"><p>Sin resultados</p></div></td></tr>';return;}
   tbody.innerHTML=items.map(i=>{
