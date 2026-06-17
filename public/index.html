@@ -1894,17 +1894,24 @@ camp.activeAds.forEach(ad=>{
          const toAdd = candidates.slice(0, count);
          candidates = candidates.slice(count); // sacarlos de la lista global
          
-         toAdd.forEach(i => {
+         allDecisions[acc].push({
+           icon: '📌', type: 'info', category: 'add', action: 'OBJETIVO DE CAMPAÑA',
+           title: `Falta agregar ${count} artículo(s) a la campaña "${camp}"`,
+           detail: `Porque pausaste artículos o subiste el presupuesto en esta campaña. Aquí abajo te sugerimos candidatos para rellenar este cupo.`,
+           priority: 3.05, account: acc, id: 'info_req_' + camp.replace(/[^a-z0-9]/gi,'_') + '_' + acc
+         });
+
+         toAdd.forEach((i, idx) => {
            const priceLabel = i.price >= 40000 ? 'Alto margen (≥$40k)' : 'Precio bajo $40k';
            const mlaDisplay = i.allMlas && i.allMlas.length > 1 ? i.allMlas.length + ' variantes' : i.mla;
            const cleanTitle = getCleanTitle(i.title) || i.title;
            
            allDecisions[acc].push({
-             icon: '🎯', type: 'ok', category: 'add', action: 'AGREGAR A CAMPAÑA',
+             icon: '🎯', type: 'ok', category: 'add', action: `REEMPLAZO ${idx+1}/${count}`,
              title: cleanTitle?.substring(0, 45),
              mla: i.mla, mlas: i.allMlas, mlaDisplay: mlaDisplay,
              campaign: camp,
-             detail: `Recomendado por acciones previas en "${camp}". ${priceLabel} · $${i.price?.toLocaleString('es-AR')} · Ventas: ${i.sold_quantity} · Stock: ${i.stock}u.`,
+             detail: `Recomendado para la campaña "${camp}". ${priceLabel} · $${i.price?.toLocaleString('es-AR')} · Ventas: ${i.sold_quantity} · Stock: ${i.stock}u.`,
              priority: 3.1, account: acc, id: 'add_ctx_' + i.mla + '_' + acc
            });
          });
