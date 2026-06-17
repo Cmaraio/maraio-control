@@ -272,11 +272,13 @@ async function loadSKU(){
 
 function handleSKUUpload(files){
   if(!files.length)return;
-  const f = files[0];
   if(typeof XLSX==='undefined'){
     const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload=()=>parseSKUFile(f);document.head.appendChild(s);
-  }else parseSKUFile(f);
+    s.onload=()=>{ for(const f of files) parseSKUFile(f); };
+    document.head.appendChild(s);
+  }else {
+    for(const f of files) parseSKUFile(f);
+  }
 }
 
 function parseSKUFile(file){
