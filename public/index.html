@@ -910,13 +910,12 @@ async function loadListings(){
 function buildConsolidatedListings() {
   const map = {};
   allListings.forEach(i => {
-    const titleKey = (i.title?.substring(0,25) || i.id).replace(/\s*(negro|blanco|rojo|azul|gris|\d{2,3}|talle)\s*.*$/i,'').trim();
-    const key = `${i.account}_${titleKey}`;
+    const key = `${i.account}_${i.id}`;
     
     if (!map[key]) {
       map[key] = {
         account: i.account,
-        titleKey: titleKey,
+        titleKey: i.id,
         title: i.title,
         mla: i.id,
         price: i.price,
@@ -1646,18 +1645,15 @@ function buildDecisions(){
       }
 
       // — PAUSE / REPLACE decisions —
-// Agrupar anuncios por MLA (publicación) para evitar duplicados por variante
+// Agrupar anuncios por MLA (publicación) para sumar sus variantes automáticamente
 const mlaMap={};
 camp.activeAds.forEach(ad=>{
-  // Agrupar por los primeros 20 caracteres del título
-  let safeTitle = String(ad.title || '');
-  let baseTitle = safeTitle.substring(0, 20).trim();
-  const mlaKey = baseTitle || 'x';
+  const mlaKey = ad.mla;
 
   if(!mlaMap[mlaKey]){
     mlaMap[mlaKey]={
-      mla: ad.mla || 'x',
-      title: safeTitle.substring(0,45),
+      mla: ad.mla,
+      title: ad.title.split('-')[0].trim() || ad.title,
       clicks:0,sales:0,spend:0,impressions:0,
       roas:null,acos:null,
       campaign:camp.name,account:acc
