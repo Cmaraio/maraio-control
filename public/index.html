@@ -1012,7 +1012,7 @@ function buildConsolidatedListings() {
   consolidatedListings = Object.values(map).map(g => {
     const adsInThisAcc = S.ads[g.account] || [];
     g.skusArray = Array.from(g.skus);
-    g.hasAds = adsInThisAcc.some(a => a.status === 'Activo' && (g.variants.includes(a.mla) || g.allMlas.includes(a.mla) || getProductGroupKey(a.title, a.mla) === g.titleKey));
+    g.hasAds = adsInThisAcc.some(a => (g.variants.includes(a.mla) || g.allMlas.includes(a.mla) || getProductGroupKey(a.title, a.mla) === g.titleKey));
     return g;
   });
 }
@@ -1630,16 +1630,6 @@ function buildDecisions(){
   const today=new Date();
   function reviewDate(days){const d=new Date(today);d.setDate(d.getDate()+days);return d.toLocaleDateString('es-AR');}
 
-  // SKU conflicts — show in both accounts
-  Object.values(skuMap).filter(s=>s.maraio?.status==='active'&&s.maraio2?.status==='active').forEach(s=>{
-    const dec={icon:'🚨',type:'danger',category:'pause',action:'CONFLICTO SKU',
-      title:`SKU activo en ambas cuentas: ${s.sku}`,
-      detail:`El mismo SKU está en maraio Y maraio2. Pausalo en una de las dos — viola la regla de unicidad.`,
-      priority:0,account:'ambas',id:'sku_'+s.sku};
-    allDecisions.maraio.push(dec);
-    allDecisions.maraio2.push({...dec,id:'sku2_'+s.sku});
-  });
-
   // Per-account, per-CAMPAIGN decisions
   ['maraio','maraio2'].forEach(acc=>{
     const campStats=getCampaignStats(acc);
@@ -1876,7 +1866,7 @@ camp.activeAds.forEach(ad=>{
     }
     if(consolidatedListings.length){
       const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
-      const activeOtherAds = (S.ads[otherAcc] || []).filter(a => a.status === 'Activo');
+      const activeOtherAds = S.ads[otherAcc] || []; // Consideramos todos los anuncios, no solo los activos, para no sugerir cosas que ya están en campañas
       
       const activeOtherSkus = new Set();
       activeOtherAds.forEach(a => {
