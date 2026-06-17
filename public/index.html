@@ -585,6 +585,14 @@ let S={
   realtimeStock:JSON.parse(localStorage.getItem('maraio_r_stock')||'{}')
 };
 let allListings=[],skuMap={},consolidatedListings=[];
+function getProductGroupKey(title, mla) {
+  if (!title) return mla;
+  let t = title.split('-')[0].trim().toLowerCase();
+  t = t.replace(/\b(ar)\b/g, '');
+  t = t.replace(/\s+(negro|blanco|rojo|azul|gris|bordo|beige|marron|marrón|rosa|fucsia|verde|amarillo)\b.*/gi, '');
+  t = t.replace(/\s+\d{2,3}(?:\/\d{1,2})?\s*$/g, '');
+  return t.trim() || mla;
+}
 let checklist={maraio:JSON.parse(localStorage.getItem('maraio_checklist_m')||'{}'),maraio2:JSON.parse(localStorage.getItem('maraio_checklist_m2')||'{}')};
 let allDecisions={maraio:[],maraio2:[]};
 let decTabs={maraio:'roas',maraio2:'roas'};
@@ -928,14 +936,16 @@ async function loadListings(){
 function buildConsolidatedListings() {
   const map = {};
   allListings.forEach(i => {
-    const key = `${i.account}_${i.id}`;
+    const groupKey = getProductGroupKey(i.title, i.id);
+    const key = `${i.account}_${groupKey}`;
     
     if (!map[key]) {
       map[key] = {
         account: i.account,
-        titleKey: i.id,
-        title: i.title,
+        titleKey: groupKey,
+        title: i.title?.split('-')[0].trim() || i.title,
         mla: i.id,
+        allMlas: [],
         price: i.price,
         stock: 0,
         status: i.status,
@@ -952,6 +962,7 @@ function buildConsolidatedListings() {
     map[key].sold_quantity += (i.sold_quantity || 0);
     map[key].visits += (i.visits || 0);
     map[key].variants.push(i.id);
+    map[key].allMlas.push(i.id);
     if(i.sku) map[key].skus.add(i.sku);
     if(i.status === 'active') map[key].status = 'active';
   });
@@ -959,7 +970,7 @@ function buildConsolidatedListings() {
   consolidatedListings = Object.values(map).map(g => {
     const adsInThisAcc = S.ads[g.account] || [];
     g.skusArray = Array.from(g.skus);
-    g.hasAds = adsInThisAcc.some(a => a.status === 'Activo' && g.variants.includes(a.mla));
+    g.hasAds = adsInThisAcc.some(a => a.status === 'Activo' && (g.variants.includes(a.mla) || g.allMlas.includes(a.mla) || getProductGroupKey(a.title, a.mla) === g.titleKey));
     return g;
   });
 }
@@ -1138,7 +1149,7 @@ function readXLSXWithLib(file,acc){
   reader.readAsArrayBuffer(file);
 }
 
-const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'mla','numero de  publicacion':'mla','número de publicación':'mla','numero de publicacion':'mla','id de ítem':'mla','id de item':'mla','item_id':'mla','id. de publicación':'mla','id. de publicacion':'mla','id de publicación':'mla','id de publicacion':'mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
+const COL_MAP={'campaña':'campaign','título de anuncio':'title','titulo de anuncio':'title','número de  publicación':'parent_mla','numero de  publicacion':'parent_mla','número de publicación':'parent_mla','numero de publicacion':'parent_mla','id de ítem':'mla','id de item':'mla','item_id':'mla','id. de publicación':'parent_mla','id. de publicacion':'parent_mla','id de publicación':'parent_mla','id de publicacion':'parent_mla','estado':'status','impresiones':'impressions','clics':'clicks','clicks':'clicks','cpc  (costo por clic)':'cpc','cpc':'cpc','ctr (click through rate)':'ctr','ctr':'ctr','cvr (convertion rate)':'cvr','cvr':'cvr','ingresos (moneda local)':'revenue','inversión (moneda local)':'spend','inversion (moneda local)':'spend','acos (inversión / ingresos)':'acos','acos (inversion / ingresos)':'acos','acos':'acos','roas (ingresos / inversión)':'roas','roas (ingresos / inversion)':'roas','roas':'roas','ventas directas':'direct_sales','ventas indirectas':'indirect_sales','ventas por publicidad (directas + indirectas)':'total_sales','ingresos por ventas directas (moneda local)':'direct_revenue','ingresos por ventas indirectas (moneda local)':'indirect_revenue'};
 
 function parseCampaignsReport(text,filename,acc){
   try{
@@ -1224,6 +1235,7 @@ function parseMLReport(text,filename,format,acc){
       else row[f] = vals[i] || '';
       row['raw_col_' + i] = vals[i] || ''; // Save all raw columns to ensure no data is lost
     });
+    if(row.parent_mla) row.mla = row.parent_mla;
     if(!row.mla&&!row.campaign)continue;
     ['impressions','clicks','cpc','ctr','cvr','revenue','spend','acos','roas','direct_sales','indirect_sales','total_sales','direct_revenue','indirect_revenue'].forEach(f=>{
       const v=String(row[f]||'').replace(/[^0-9.,\-]/g,'').replace(',','.');
@@ -1393,7 +1405,27 @@ return false; // no campaign report = don't show
             <th style="padding:8px 12px;font-size:10px;color:var(--text2);border-bottom:1px solid var(--border);">Rec.</th>
           </tr></thead>
           <tbody>
-          ${campAds.filter(a=>(a.impressions||0)>0||(a.clicks||0)>0||(a.spend||0)>0).map(ad=>{
+          ${Object.values(campAds.filter(a=>(a.impressions||0)>0||(a.clicks||0)>0||(a.spend||0)>0).reduce((accMap, ad) => {
+              const gk = getProductGroupKey(ad.title, ad.mla);
+              if(!accMap[gk]) accMap[gk] = { ...ad, title: ad.title?.split('-')[0].trim() || ad.title, allMlas: new Set([ad.mla]) };
+              else {
+                accMap[gk].impressions += (ad.impressions||0);
+                accMap[gk].clicks += (ad.clicks||0);
+                accMap[gk].spend += (ad.spend||0);
+                accMap[gk].revenue += (ad.revenue||0);
+                accMap[gk].total_sales = (accMap[gk].total_sales||0) + (ad.total_sales||0);
+                accMap[gk].direct_sales = (accMap[gk].direct_sales||0) + (ad.direct_sales||0);
+                if(ad.status === 'Activo') accMap[gk].status = 'Activo';
+                accMap[gk].allMlas.add(ad.mla);
+              }
+              return accMap;
+          }, {})).map(ad => {
+            ad.ctr = ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0;
+            ad.acos = ad.revenue > 0 ? (ad.spend / ad.revenue) * 100 : (ad.spend > 0 ? null : 0);
+            ad.roas = ad.spend > 0 ? (ad.revenue / ad.spend) : (ad.revenue > 0 ? null : 0);
+            const mlaList = Array.from(ad.allMlas);
+            const mlaDisplay = mlaList.length > 1 ? mlaList.length + ' variantes' : mlaList[0];
+            
             const rec=getRecommendation(ad);
             const hasData=(ad.impressions||0)>0||(ad.clicks||0)>0;
             const acosLim=getAcosLimit(ad);const roasTgt=getRoasTarget(ad);
@@ -1402,21 +1434,28 @@ return false; // no campaign report = don't show
             const sc=ad.status==='Activo'?'tg':ad.status==='Pausado'?'ty':'';
 
             let stockHtml = '';
-            const rStock = S.realtimeStock[ad.mla];
-            if(rStock){
-              if(rStock.stock === 0) stockHtml = `<div style="margin-top:2px;"><span class="tag tr">SIN STOCK — pausar publicación</span></div>`;
-              else if(rStock.stock <= 15) {
-                stockHtml = `<div style="margin-top:2px;font-size:10px;font-weight:600;color:var(--orange);">⚠️ ${rStock.stock} u.</div>`;
-                if(rStock.zeroVariants && rStock.zeroVariants.length) stockHtml += `<div style="font-size:9px;color:var(--red);">Var. sin stock: ${rStock.zeroVariants[0]}</div>`;
+            let totalStock = 0; let hasStockData = false; let zeroVars = [];
+            mlaList.forEach(m => {
+              if(S.realtimeStock[m]) {
+                 hasStockData = true;
+                 totalStock += S.realtimeStock[m].stock;
+                 if(S.realtimeStock[m].zeroVariants) zeroVars.push(...S.realtimeStock[m].zeroVariants);
+              }
+            });
+            if(hasStockData){
+              if(totalStock === 0) stockHtml = `<div style="margin-top:2px;"><span class="tag tr">SIN STOCK — pausar publicación</span></div>`;
+              else if(totalStock <= 15) {
+                stockHtml = `<div style="margin-top:2px;font-size:10px;font-weight:600;color:var(--orange);">⚠️ ${totalStock} u.</div>`;
+                if(zeroVars.length) stockHtml += `<div style="font-size:9px;color:var(--red);">Var. sin stock: ${zeroVars[0]}</div>`;
               } else {
-                stockHtml = `<div style="margin-top:2px;font-size:10px;font-weight:600;color:var(--green);">${rStock.stock} u. en stock</div>`;
+                stockHtml = `<div style="margin-top:2px;font-size:10px;font-weight:600;color:var(--green);">${totalStock} u. en stock</div>`;
               }
             }
 
             return `<tr>
               <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">
                 <div style="font-weight:500;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ad.title||''}">${ad.title?.substring(0,35)||'—'}</div>
-                <div style="font-size:10px;color:var(--text3);">${ad.mla||'—'}</div>
+                <div style="font-size:10px;color:var(--text3);" title="${mlaList.join(', ')}">${mlaDisplay}</div>
                 ${stockHtml}
               </td>
               <td style="padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.3);">${ad.status?`<span class="tag ${sc}">${ad.status}</span>`:'-'}</td>
@@ -1668,19 +1707,22 @@ function buildDecisions(){
       }
 
       // — PAUSE / REPLACE decisions —
-// Agrupar anuncios por MLA (publicación) para sumar sus variantes automáticamente
+// Agrupar anuncios por PUBLICACION (agrupando variantes y MLAs separados)
 const mlaMap={};
 camp.activeAds.forEach(ad=>{
-  const mlaKey = ad.mla;
+  const mlaKey = getProductGroupKey(ad.title, ad.mla);
 
   if(!mlaMap[mlaKey]){
     mlaMap[mlaKey]={
       mla: ad.mla,
+      allMlas: new Set([ad.mla]),
       title: ad.title.split('-')[0].trim() || ad.title,
       clicks:0,sales:0,spend:0,impressions:0,
       roas:null,acos:null,
       campaign:camp.name,account:acc
     };
+  } else {
+    mlaMap[mlaKey].allMlas.add(ad.mla);
   }
   mlaMap[mlaKey].clicks+=(ad.clicks||0);
   mlaMap[mlaKey].sales+=(ad.total_sales||ad.direct_sales||0);
