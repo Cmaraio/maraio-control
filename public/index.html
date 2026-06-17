@@ -582,7 +582,8 @@ let S={
   addDates:JSON.parse(localStorage.getItem('maraio_add_dates')||'{}'),
   chatAddItems:{maraio:[],maraio2:[]},
   skuOverrides:{},chatHistory:[],
-  realtimeStock:JSON.parse(localStorage.getItem('maraio_r_stock')||'{}')
+  realtimeStock:JSON.parse(localStorage.getItem('maraio_r_stock')||'{}'),
+  ignoredRecs:new Set(JSON.parse(localStorage.getItem('maraio_ignored_recs')||'[]'))
 };
 let allListings=[],skuMap={},consolidatedListings=[];
 function getProductGroupKey(title, mla) {
@@ -593,6 +594,24 @@ function getProductGroupKey(title, mla) {
   t = t.replace(/\s+\d{2,3}(?:\/\d{1,2})?\s*$/g, '');
   return t.trim() || mla;
 }
+function getCleanTitle(title) {
+  if (!title) return '';
+  let t = title.split('-')[0].trim();
+  t = t.replace(/\b(Ar|ar)\b/g, '');
+  t = t.replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Bordo|Beige|Marron|Marrón|Rosa|Fucsia|Verde|Amarillo)\b.*/gi, '');
+  t = t.replace(/\s+\d{2,3}(?:\/\d{1,2})?\s*$/g, '');
+  return t.trim();
+}
+
+window.ignoreRecommendation = function(acc, mlas) {
+  if (confirm('¿Ocultar este artículo de las recomendaciones?')) {
+    const mlaArray = mlas.split(',');
+    mlaArray.forEach(m => S.ignoredRecs.add(m));
+    localStorage.setItem('maraio_ignored_recs', JSON.stringify(Array.from(S.ignoredRecs)));
+    buildDecisions();
+  }
+}
+
 let checklist={maraio:JSON.parse(localStorage.getItem('maraio_checklist_m')||'{}'),maraio2:JSON.parse(localStorage.getItem('maraio_checklist_m2')||'{}')};
 let allDecisions={maraio:[],maraio2:[]};
 let decTabs={maraio:'roas',maraio2:'roas'};
@@ -1842,12 +1861,13 @@ camp.activeAds.forEach(ad=>{
         if(adListing && adListing.sku) activeOtherSkus.push(adListing.sku);
       });
 
-      const candidates = consolidatedListings.filter(i => 
+      let candidates = consolidatedListings.filter(i => 
         i.account === acc && 
         i.status === 'active' && 
         i.stock > 5 && 
         !i.hasAds && 
-        !i.skusArray.some(s => activeOtherSkus.includes(s))
+        !i.skusArray.some(s => activeOtherSkus.includes(s)) &&
+        !i.allMlas.some(m => S.ignoredRecs.has(m))
       );
 
       // Ordenar por ventas descendente y luego stock descendente
@@ -1856,14 +1876,53 @@ camp.activeAds.forEach(ad=>{
         return b.stock - a.stock;
       });
 
+      // Calcular "deficits" por campaña en base a acciones del checklist
+      const needsByCampaign = {};
+      (allDecisions[acc] || []).forEach(dec => {
+        const isChecked = checklist[acc] && checklist[acc][dec.id];
+        if (isChecked) {
+          if (dec.category === 'pause' && dec.campaign) {
+             needsByCampaign[dec.campaign] = (needsByCampaign[dec.campaign] || 0) + 1;
+          } else if (dec.category === 'budget' && dec.action.includes('SUBIR') && dec.campaign) {
+             needsByCampaign[dec.campaign] = (needsByCampaign[dec.campaign] || 0) + 1;
+          }
+        }
+      });
+
+      // Generar recomendaciones de ADD contextuales (por campaña)
+      Object.entries(needsByCampaign).forEach(([camp, count]) => {
+         const toAdd = candidates.slice(0, count);
+         candidates = candidates.slice(count); // sacarlos de la lista global
+         
+         toAdd.forEach(i => {
+           const priceLabel = i.price >= 40000 ? 'Alto margen (≥$40k)' : 'Precio bajo $40k';
+           const mlaDisplay = i.allMlas && i.allMlas.length > 1 ? i.allMlas.length + ' variantes' : i.mla;
+           const cleanTitle = getCleanTitle(i.title) || i.title;
+           
+           allDecisions[acc].push({
+             icon: '🎯', type: 'ok', category: 'add', action: 'AGREGAR A CAMPAÑA',
+             title: cleanTitle?.substring(0, 45),
+             mla: i.mla, mlas: i.allMlas, mlaDisplay: mlaDisplay,
+             campaign: camp,
+             detail: `Recomendado por acciones previas en "${camp}". ${priceLabel} · $${i.price?.toLocaleString('es-AR')} · Ventas: ${i.sold_quantity} · Stock: ${i.stock}u.`,
+             priority: 3.1, account: acc, id: 'add_ctx_' + i.mla + '_' + acc
+           });
+         });
+      });
+
       candidates.slice(0, 15).forEach(i => {
         const priceLabel = i.price >= 40000 ? 'Alto margen (≥$40k)' : 'Precio bajo $40k';
         const roasObj = i.price >= 40000 ? '20x' : '15x';
+        
+        const mlaDisplay = i.allMlas && i.allMlas.length > 1 ? i.allMlas.length + ' variantes' : i.mla;
+        const cleanTitle = getCleanTitle(i.title) || i.title;
+        
         allDecisions[acc].push({
           icon: '➕', type: 'info', category: 'add', action: 'CANDIDATO IDEAL',
-          title: `${i.title?.substring(0, 45)}`,
+          title: cleanTitle?.substring(0, 45),
+          mla: i.mla, mlas: i.allMlas, mlaDisplay: mlaDisplay,
           detail: `Sin campaña activa ni conflicto de SKU. ${priceLabel} · $${i.price?.toLocaleString('es-AR')} · Ventas: ${i.sold_quantity} · Stock: ${i.stock}u. Ideal para sumar con ROAS ${roasObj}.`,
-          priority: 3.5, account: acc, mla: i.mla, id: 'add_' + i.mla + '_' + acc
+          priority: 3.5, account: acc, id: 'add_' + i.mla + '_' + acc
         });
       });
     }
@@ -1915,7 +1974,10 @@ function renderDecTabForAcc(acc){
           <div class="dec-detail">${d.detail}</div>
           ${d.campaign?`<div style="font-size:10px;color:var(--text3);margin-top:3px;">📁 ${d.campaign}</div>`:''}
         </div>
-        <div class="dec-action"><span class="tag ${tagCls[d.type]||'tb'}" style="white-space:nowrap;">${d.action}</span></div>
+        <div class="dec-action" style="display:flex;flex-direction:column;align-items:flex-end;">
+          <span class="tag ${tagCls[d.type]||'tb'}" style="white-space:nowrap;">${d.action}</span>
+          ${d.category==='add' && d.mla ? `<button class="btn btn-s" style="margin-top:6px;font-size:10px;padding:4px 8px;border-radius:4px;color:var(--text3);border-color:var(--border);" onclick="ignoreRecommendation('${acc}','${d.mlas ? Array.from(d.mlas).join(',') : d.mla}')">👁️‍🗨️ Ocultar</button>` : ''}
+        </div>
       </div>`;
     }).join('');
   }
