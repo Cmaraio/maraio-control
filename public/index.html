@@ -344,9 +344,15 @@ select.fs{background:var(--surface);border:1px solid var(--border);border-radius
     <select class="fs" id="ls-acc" onchange="filterListings()"><option value="all">Ambas</option><option value="maraio">maraio</option><option value="maraio2">maraio2</option></select>
     <select class="fs" id="ls-stock" onchange="filterListings()"><option value="all">Todo stock</option><option value="low">Bajo (≤5)</option><option value="out">Sin stock</option></select>
   </div>
+  
+  <div id="ls-selected-wrap" style="display:none;margin-bottom:14px;">
+    <h3 style="font-size:13px;font-weight:600;margin-bottom:8px;">Seleccionados para Ads (S.chatAddItems)</h3>
+    <div id="ls-selected-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
   <div class="tw"><table>
-    <thead><tr><th>MLA / Título</th><th>SKU</th><th>Cuenta</th><th>Precio</th><th>Stock</th><th>Estado</th></tr></thead>
-    <tbody id="ls-tbody"><tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
+    <thead><tr><th>MLA / Título</th><th>Cuenta</th><th>Precio</th><th>Ventas</th><th>Visitas</th><th>Stock</th><th>Ads</th><th></th></tr></thead>
+    <tbody id="ls-tbody"><tr><td colspan="8"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr></tbody>
   </table></div>
 </div>
 
@@ -569,7 +575,7 @@ let S={
   skuOverrides:{},chatHistory:[],
   realtimeStock:JSON.parse(localStorage.getItem('maraio_r_stock')||'{}')
 };
-let allListings=[],skuMap={};
+let allListings=[],skuMap={},consolidatedListings=[];
 let checklist={maraio:JSON.parse(localStorage.getItem('maraio_checklist_m')||'{}'),maraio2:JSON.parse(localStorage.getItem('maraio_checklist_m2')||'{}')};
 let allDecisions={maraio:[],maraio2:[]};
 let decTabs={maraio:'roas',maraio2:'roas'};
@@ -876,32 +882,146 @@ function filterSKU(){
 
 // ── LISTINGS ──────────────────────────────────────────────────
 async function loadListings(){
-  $('ls-tbody').innerHTML='<tr><td colspan="6"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr>';
-  if(!allListings.length)await loadAllListings();filterListings();
+  $('ls-tbody').innerHTML='<tr><td colspan="8"><div class="loading"><div class="sp"></div>Cargando...</div></td></tr>';
+  if(!allListings.length)await loadAllListings();
+  buildConsolidatedListings();
+  filterListings();
+  renderSelectedListings();
+}
+
+function buildConsolidatedListings() {
+  const map = {};
+  allListings.forEach(i => {
+    const titleKey = (i.title?.substring(0,25) || i.id).replace(/\s*(negro|blanco|rojo|azul|gris|\d{2,3}|talle)\s*.*$/i,'').trim();
+    const key = `${i.account}_${titleKey}`;
+    
+    if (!map[key]) {
+      map[key] = {
+        account: i.account,
+        titleKey: titleKey,
+        title: i.title,
+        mla: i.id,
+        price: i.price,
+        stock: 0,
+        status: i.status,
+        permalink: i.permalink,
+        variants: [],
+        skus: new Set(),
+        sold_quantity: 0,
+        visits: 0,
+        hasAds: false
+      };
+    }
+    
+    map[key].stock += i.available_quantity;
+    map[key].sold_quantity += (i.sold_quantity || 0);
+    map[key].variants.push(i.id);
+    if(i.sku) map[key].skus.add(i.sku);
+    if(i.status === 'active') map[key].status = 'active';
+  });
+
+  consolidatedListings = Object.values(map).map(g => {
+    const adsInThisAcc = S.ads[g.account] || [];
+    g.skusArray = Array.from(g.skus);
+    g.hasAds = adsInThisAcc.some(a => a.status === 'Activo' && g.variants.includes(a.mla));
+    return g;
+  });
 }
 
 function filterListings(){
   const s=$('ls-search').value.toLowerCase();const acc=$('ls-acc').value;const stk=$('ls-stock').value;
-  let items=allListings.filter(i=>{
-    if(s&&!i.title?.toLowerCase().includes(s)&&!i.id?.toLowerCase().includes(s)&&!i.sku?.toLowerCase().includes(s))return false;
+  let items=consolidatedListings.filter(i=>{
+    if(s&&!i.title?.toLowerCase().includes(s)&&!i.mla?.toLowerCase().includes(s)&&!i.skusArray.some(sk=>sk.toLowerCase().includes(s)))return false;
     if(acc!=='all'&&i.account!==acc)return false;
-    if(stk==='low'&&i.available_quantity>5)return false;
-    if(stk==='out'&&i.available_quantity>0)return false;
+    if(stk==='low'&&i.stock>5)return false;
+    if(stk==='out'&&i.stock>0)return false;
     return true;
   });
   const tbody=$('ls-tbody');
-  if(!items.length){tbody.innerHTML='<tr><td colspan="6"><div class="es"><p>Sin resultados</p></div></td></tr>';return;}
+  if(!items.length){tbody.innerHTML='<tr><td colspan="8"><div class="es"><p>Sin resultados</p></div></td></tr>';return;}
   tbody.innerHTML=items.map(i=>{
-    const sc=i.available_quantity<=3?'var(--red)':i.available_quantity<=10?'var(--yellow)':'var(--green)';
+    const sc=i.stock<=3?'var(--red)':i.stock<=10?'var(--yellow)':'var(--green)';
+    const adsBadge = i.hasAds ? '<span class="tag tg">En Ads</span>' : '<span class="tag ty">Sin Ads</span>';
+    const isSelected = (S.chatAddItems[i.account] || []).some(x => x.mla === i.mla);
+    const btnHtml = isSelected ? 
+      `<button class="btn btn-s btn-sm" disabled style="opacity:0.5;">✓</button>` : 
+      `<button class="btn btn-s btn-sm" onclick="addToChatList('${i.account}','${i.mla}')">+</button>`;
+      
     return `<tr>
-      <td><a href="${i.permalink}" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500;">${i.title?.substring(0,45)||'—'}</a><div style="font-size:10px;color:var(--text3);">${i.id}</div></td>
-      <td><span class="sku-badge">${i.sku||'—'}</span></td>
+      <td><a href="${i.permalink}" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500;">${i.title?.substring(0,45)||'—'}</a><div style="font-size:10px;color:var(--text3);">${i.mla}</div></td>
       <td><span class="tag ${i.account==='maraio'?'tb':'ti'}">${i.account}</span></td>
       <td>$${i.price?.toLocaleString('es-AR')}</td>
-      <td><span style="color:${sc};font-weight:600;">${i.available_quantity}</span></td>
-      <td><span class="tag ${i.status==='active'?'tg':i.status==='paused'?'ty':'tr'}">${i.status==='active'?'Activo':i.status==='paused'?'Pausado':'Cerrado'}</span></td>
+      <td>${i.sold_quantity}</td>
+      <td>—</td>
+      <td><span style="color:${sc};font-weight:600;">${i.stock}</span></td>
+      <td>${adsBadge}</td>
+      <td>${btnHtml}</td>
     </tr>`;
   }).join('');
+}
+
+function renderSelectedListings() {
+  const wrap = $('ls-selected-wrap');
+  const list = $('ls-selected-list');
+  const allSelected = [...(S.chatAddItems.maraio||[]).map(i=>({...i,acc:'maraio'})), ...(S.chatAddItems.maraio2||[]).map(i=>({...i,acc:'maraio2'}))];
+  
+  if(!allSelected.length) {
+    wrap.style.display = 'none';
+    return;
+  }
+  
+  wrap.style.display = 'block';
+  list.innerHTML = allSelected.map(i => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <span class="tag ${i.acc==='maraio'?'tb':'ti'}" style="margin-right:8px;">${i.acc}</span>
+        <span style="font-weight:600;font-size:12px;">${i.title}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:6px;">${i.mla}</span>
+      </div>
+      <button class="btn btn-s btn-sm" onclick="removeFromChatList('${i.acc}','${i.mla}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function addToChatList(acc, mlaParent) {
+  if(!consolidatedListings.length) buildConsolidatedListings();
+  const listing = consolidatedListings.find(l => l.account === acc && l.mla === mlaParent);
+  if (!listing) return;
+  
+  const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
+  const adsInOtherAcc = S.ads[otherAcc] || [];
+  const activeOtherAds = adsInOtherAcc.filter(a => a.status === 'Activo');
+  
+  const activeOtherSkus = [];
+  activeOtherAds.forEach(a => {
+    const adListing = allListings.find(i => i.id === a.mla && i.account === otherAcc);
+    if(adListing && adListing.sku) activeOtherSkus.push(adListing.sku);
+  });
+  
+  const conflictSku = listing.skusArray.find(s => activeOtherSkus.includes(s));
+  if (conflictSku) {
+    toast(`Rechazado: Conflicto con SKU "${conflictSku}" que ya está activo en ads de ${otherAcc}`, 'error');
+    return;
+  }
+  
+  if (!S.chatAddItems[acc].find(i => i.mla === mlaParent)) {
+    S.chatAddItems[acc].push({
+      mla: mlaParent,
+      title: listing.title,
+      detail: `Precio: $${listing.price?.toLocaleString('es-AR')} · Stock: ${listing.stock}u.`
+    });
+    toast(`"${listing.title?.substring(0,30)}" agregado a la lista de ${acc}`, 'success');
+    renderSelectedListings();
+    filterListings();
+    buildDecisions(); // Refresh recommendations
+  }
+}
+
+function removeFromChatList(acc, mla) {
+  S.chatAddItems[acc] = S.chatAddItems[acc].filter(i => i.mla !== mla);
+  renderSelectedListings();
+  filterListings();
+  buildDecisions();
 }
 
 // ── SALES ─────────────────────────────────────────────────────
@@ -1974,35 +2094,23 @@ async function sendChat(){
     });
   });
 
-  // No Ads Listings context (limit to top 50, stock > 5)
-  const noAdsListings = [];
-  ['maraio','maraio2'].forEach(acc=>{
-    const adsSet = new Set(S.ads[acc].map(a=>a.mla));
-    allListings.filter(i=>i.account===acc && i.status==='active' && i.available_quantity>5 && !adsSet.has(i.id))
-      .slice(0,50).forEach(i=>{
-        noAdsListings.push({account:acc, mla:i.id, title:i.title, stock:i.available_quantity, price:i.price});
-      });
-  });
-
-  // Active Listings context with SKUs (limit to 100 for context size)
-  const activeListingsContext = allListings.filter(i => i.status === 'active').slice(0, 100).map(i => {
-    let variantSkus = [];
-    if(i.variations) {
-      i.variations.forEach(v => {
-        const attr = (v.attributes || []).find(a => a.id === 'SELLER_SKU' || a.id === 'SKU');
-        if(attr?.value_name) variantSkus.push(attr.value_name);
-      });
-    }
-    const skus = [...new Set([i.sku, ...variantSkus])].filter(s => s && s !== '—');
-    return { mla: i.id, title: i.title, account: i.account, price: i.price, stock: i.available_quantity, skus };
-  });
+  const consolidatedListingsContext = consolidatedListings.filter(l => l.stock > 0).map(l => ({
+    account: l.account,
+    mlaParent: l.mla,
+    title: l.title,
+    price: l.price,
+    sales: l.sold_quantity,
+    visits: l.visits || '-',
+    stock: l.stock,
+    hasAds: l.hasAds,
+    skus: l.skusArray
+  }));
 
   const ctx={
     accounts:{maraio:{connected:S.accounts.maraio.connected},maraio2:{connected:S.accounts.maraio2.connected}},
     campaigns:campSummary,
     activeDecisions,
-    noAdsListings,
-    activeListingsContext,
+    consolidatedListings: consolidatedListingsContext,
     roasDates: S.roasDates,
     totalListings:allListings.length,
     conflicts:countConflicts(),
@@ -2023,27 +2131,13 @@ async function sendChat(){
 
     // Parse if AI suggested adding an item — look for MLA codes in reply
     const mlaMatches=reply.match(/MLA\d{8,12}/g);
-    if(mlaMatches&&reply.toLowerCase().includes('agreg')){
-      mlaMatches.forEach(mla=>{
-        // Find which account this MLA belongs to
-        ['maraio','maraio2'].forEach(acc=>{
-          const listing=allListings.find(i=>i.id===mla&&i.account===acc);
-          if(listing&&!S.chatAddItems[acc].find(i=>i.mla===mla)){
-            const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
-            const listingSkus = activeListingsContext.find(l => l.mla === mla)?.skus || [];
-            const activeOtherSkus = activeListingsContext.filter(l => l.account === otherAcc).flatMap(l => l.skus);
-            const hasConflict = listingSkus.some(s => activeOtherSkus.includes(s));
-            
-            if (hasConflict) {
-              addMsg('ai', `⚠️ No puedo agregar el artículo ${mla} porque generaría un conflicto de SKU con la otra cuenta.`);
-            } else {
-              S.chatAddItems[acc].push({mla,title:listing.title||mla,detail:`Sugerido por el asistente. Precio: $${listing.price?.toLocaleString('es-AR')} · Stock: ${listing.available_quantity}u.`});
-              toast(`💬 "${listing.title?.substring(0,30)}" agregado a la lista de ${acc}`,'success');
-            }
-          }
-        });
+    if(mlaMatches && (reply.toLowerCase().includes('agreg') || reply.toLowerCase().includes('sumar') || reply.toLowerCase().includes('añad') || reply.toLowerCase().includes('incorpor'))){
+      [...new Set(mlaMatches)].forEach(mla=>{
+        const listing = consolidatedListings.find(l => l.mla === mla || l.variants.includes(mla));
+        if (listing) {
+          addToChatList(listing.account, listing.mla);
+        }
       });
-      buildDecisions();
     }
   }catch(e){typing.remove();addMsg('ai','Error al conectar con el asistente. Verificá que el servidor esté corriendo.');}
   $('chat-send').disabled=false;

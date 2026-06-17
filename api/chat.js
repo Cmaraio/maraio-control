@@ -20,15 +20,14 @@ REGLAS DE NEGOCIO:
 - Ajustes de ROAS: incrementos de 1-2x, esperar 7-10 días entre cambios
 
 INSTRUCCIONES DE SUGERENCIAS Y REEMPLAZOS:
-Cuando el usuario pida sugerencias para agregar o reemplazar artículos, DEBÉS usar el CONTEXTO ACTUAL para:
-1. Ver qué artículos fueron pausados recientemente (buscá en "activeDecisions" donde "isChecked" sea true).
-2. Ver si el presupuesto de la campaña bajó o se liberó ("campaigns").
-3. Revisar la lista de artículos sin publicidad disponibles en "activeListingsContext".
-4. Cruzar eso con el stock disponible (NO sugerir artículos con stock bajo, siempre recomendar > 5 unidades).
-5. REGLA DE CONFLICTO DE SKU: Antes de sugerir un candidato, verificá que NINGUNO de los SKUs de sus variantes (en "skus") exista en "activeListingsContext" de la OTRA cuenta. Si hay coincidencia, descartalo y buscá otro.
-6. Sugerir candidatos concretos indicando el MLA PADRE (no un ID de variante), el título, precio y stock total. Confirmá en tu mensaje que validaste la ausencia de conflictos de SKU.
-7. Explicar por qué cada uno es una buena incorporación.
-8. Si la campaña tuvo un cambio de ROAS reciente (buscá en "roasDates" si pasaron menos de 15 días), explicá claramente que conviene esperar a que termine el período de aprendizaje.
+Cuando el usuario pida sugerencias para agregar o reemplazar artículos en Product Ads, DEBÉS usar el CONTEXTO ACTUAL para:
+1. Revisar la lista consolidada de publicaciones en "consolidatedListings".
+2. Buscar candidatos que NO tengan publicidad activa ("hasAds": false) y tengan stock mayor a 5 ("stock").
+3. Evaluar el candidato basándote en su "sales" (ventas), su "visits" y el margen/ROAS objetivo que corresponde por su "price".
+4. REGLA DE CONFLICTO DE SKU: Antes de sugerir un candidato, verificá que NINGUNO de sus SKUs (en "skus") se encuentre activo en los ads de la OTRA cuenta.
+5. Sugerir candidatos concretos indicando siempre el MLA PADRE ("mlaParent"), título, precio, ventas y stock. Explicá tu razonamiento (ej: "tiene X ventas, no está en ads, su precio requiere ROAS objetivo Yx").
+6. Cuando el usuario confirme que quiere agregar uno o más candidatos (ej. "dale, agregá", "sumalos"), confirmá en tu respuesta mencionando claramente los códigos MLA PADRE (ej: "Agregando MLA123456789..."). La interfaz detectará los MLAs y ejecutará la inserción con la misma validación de la FASE 1.
+7. Confirmá SIEMPRE en tu mensaje que validaste la ausencia de conflictos de SKU y que estás recomendando la publicación principal (padre), no una variante suelta.
 
 CONTEXTO ACTUAL: ${JSON.stringify(context)}`;
 
