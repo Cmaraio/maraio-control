@@ -289,9 +289,9 @@ function parseSKUFile(file){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       let headerRow=-1;
-      for(let i=0;i<Math.min(raw.length,10);i++){
+      for(let i=0;i<Math.min(raw.length,50);i++){
         const rowStr=raw[i].map(c=>String(c).toLowerCase()).join('|');
-        if(rowStr.includes('sku')||rowStr.includes('publicaci')){headerRow=i;break;}
+        if(rowStr.includes('sku')||rowStr.includes('publicaci')||rowStr.includes('item')||rowStr.includes('mla')){headerRow=i;break;}
       }
       if(headerRow===-1){toast('No se detectaron columnas de SKU o ID en el archivo','error');return;}
       

@@ -893,9 +893,9 @@ function parseSKUFile(file){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       let headerRow=-1;
-      for(let i=0;i<Math.min(raw.length,10);i++){
+      for(let i=0;i<Math.min(raw.length,50);i++){
         const rowStr=raw[i].map(c=>String(c).toLowerCase()).join('|');
-        if(rowStr.includes('sku')||rowStr.includes('publicaci')){headerRow=i;break;}
+        if(rowStr.includes('sku')||rowStr.includes('publicaci')||rowStr.includes('item')||rowStr.includes('mla')){headerRow=i;break;}
       }
       if(headerRow===-1){toast('No se detectaron columnas de SKU o ID en el archivo','error');return;}
       
@@ -2522,26 +2522,6 @@ function closeSidebar(){
     <button class="btn btn-p" onclick="closeEvtModal()">Cerrar</button>
   </div>
 </div>
-<button onclick="downloadDebug()" style="position:fixed;bottom:10px;right:10px;z-index:9999;background:red;color:white;padding:5px 10px;border-radius:5px;cursor:pointer;">DEBUG</button>
-<script>
-function downloadDebug() {
-  if(allListings.length === 0) {
-    alert("Por favor esperá a que terminen de cargar todas las publicaciones en pantalla antes de presionar DEBUG.");
-    return;
-  }
-  const filteredListings = allListings.filter(i => (i.title||'').toLowerCase().includes('bota') || (i.title||'').toLowerCase().includes('pancha'));
-  const filteredAds = {
-    maraio: (S.ads.maraio||[]).filter(a => (a.title||'').toLowerCase().includes('bota') || (a.title||'').toLowerCase().includes('pancha')),
-    maraio2: (S.ads.maraio2||[]).filter(a => (a.title||'').toLowerCase().includes('bota') || (a.title||'').toLowerCase().includes('pancha'))
-  };
-  const data = JSON.stringify({filteredListings, filteredAds}, null, 2);
-  const blob = new Blob([data], {type: 'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'debug_maraio.txt';
-  a.click();
-}
-</script>
+
 </body>
 </html>
