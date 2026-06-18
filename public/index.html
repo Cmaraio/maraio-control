@@ -1002,34 +1002,19 @@ function getAllSKUs(item){
 
 function buildSKUMap(){
   skuMap={};
-  const activeAdsMla = {
-    maraio: new Set((S.ads.maraio||[]).filter(a=>a.status&&a.status.toLowerCase().startsWith('activ')).map(a=>a.mla)),
-    maraio2: new Set((S.ads.maraio2||[]).filter(a=>a.status&&a.status.toLowerCase().startsWith('activ')).map(a=>a.mla))
-  };
-  
-  allListings.forEach(item=>{
-    const sku=item.sku||item.id;
-    if(!skuMap[sku])skuMap[sku]={sku,maraio:null,maraio2:null, maraioAdCount:0, maraio2AdCount:0};
-    if(!skuMap[sku][item.account] || item.status === 'active') {
-      skuMap[sku][item.account]=item;
-    }
-    if(activeAdsMla[item.account].has(item.id)) {
-      if(item.account==='maraio') skuMap[sku].maraioAdCount++;
-      if(item.account==='maraio2') skuMap[sku].maraio2AdCount++;
-    }
-  });
+  allListings.forEach(item=>{const sku=item.sku||item.id;if(!skuMap[sku])skuMap[sku]={sku,maraio:null,maraio2:null};skuMap[sku][item.account]=item;});
 }
 
 function filterSKU(){
   const search=$('sku-search').value.toLowerCase();const filter=$('sku-filter').value;
   const tbody=$('sku-tbody');let entries=Object.values(skuMap);
   if(search)entries=entries.filter(e=>e.sku.toLowerCase().includes(search)||(e.maraio?.title||e.maraio2?.title||'').toLowerCase().includes(search));
-  if(filter==='conflict')entries=entries.filter(e=>e.maraioAdCount>1 || e.maraio2AdCount>1);
+  if(filter==='conflict')entries=entries.filter(e=>e.maraio?.status==='active'&&e.maraio2?.status==='active');
   if(filter==='maraio')entries=entries.filter(e=>e.maraio&&!e.maraio2);
   if(filter==='maraio2')entries=entries.filter(e=>!e.maraio&&e.maraio2);
   if(!entries.length){tbody.innerHTML='<tr><td colspan="7"><div class="es"><p>Sin resultados</p></div></td></tr>';return;}
   tbody.innerHTML=entries.map(e=>{
-    const isConflict = e.maraioAdCount>1 || e.maraio2AdCount>1;
+    const isConflict=e.maraio?.status==='active'&&e.maraio2?.status==='active';
     const item=e.maraio||e.maraio2;const price=e.maraio?.price||e.maraio2?.price||0;
     const stock=(e.maraio?.available_quantity||0)+(e.maraio2?.available_quantity||0);
     return `<tr class="${isConflict?'conflict':''}">
@@ -1039,7 +1024,7 @@ function filterSKU(){
       <td>${e.maraio2?`<span class="tag ${e.maraio2.status==='active'?'tg':'ty'}">${e.maraio2.status==='active'?'Activo':'Pausado'}</span>`:'<span style="color:var(--text3);">—</span>'}</td>
       <td>$${price.toLocaleString('es-AR')}</td>
       <td style="color:${stock<=5?'var(--red)':stock<=15?'var(--yellow)':'var(--green)'};font-weight:600;">${stock}</td>
-      <td>${isConflict?'<span class="tag tr">⚠️ Conflicto Interno</span>':e.maraio&&e.maraio2?'<span class="tag ty">En ambas</span>':e.maraio?'<span class="tag tb">Solo maraio</span>':'<span class="tag ti">Solo maraio2</span>'}</td>
+      <td>${isConflict?'<span class="tag tr">⚠️ Conflicto</span>':e.maraio&&e.maraio2?'<span class="tag ty">En ambas</span>':e.maraio?'<span class="tag tb">Solo maraio</span>':'<span class="tag ti">Solo maraio2</span>'}</td>
     </tr>`;
   }).join('');
 }
@@ -1948,23 +1933,44 @@ camp.activeAds.forEach(ad=>{
       buildConsolidatedListings();
     }
     if(consolidatedListings.length){
-      const activeThisAds = (S.ads[acc] || []).filter(a => a.status && a.status.toLowerCase().startsWith('activ'));
+      const otherAcc = acc === 'maraio' ? 'maraio2' : 'maraio';
+      const activeOtherAds = (S.ads[otherAcc] || []).filter(a => a.status && a.status.toLowerCase().startsWith('activ'));
       
-      const activeThisSkus = new Set();
-      activeThisAds.forEach(a => {
-        const adListing = allListings.find(i => i.id === a.mla && i.account === acc);
+      const activeOtherSkus = new Set();
+      activeOtherAds.forEach(a => {
+        const adListing = allListings.find(i => i.id === a.mla && i.account === otherAcc);
         if(adListing && adListing.allSkus && adListing.allSkus.length > 0) {
-          adListing.allSkus.forEach(s => activeThisSkus.add(String(s).trim().toUpperCase()));
+          adListing.allSkus.forEach(s => activeOtherSkus.add(String(s).trim().toUpperCase()));
         } else if(adListing && adListing.sku) {
-          activeThisSkus.add(String(adListing.sku).trim().toUpperCase());
+          activeOtherSkus.add(String(adListing.sku).trim().toUpperCase());
         }
       });
 
       let candidates = consolidatedListings.filter(i => {
         if(i.account !== acc || i.status !== 'active' || i.stock <= 5 || i.hasAds) return false;
-        if(i.skusArray.some(s => activeThisSkus.has(String(s).trim().toUpperCase()))) return false;
+        if(i.skusArray.some(s => activeOtherSkus.has(String(s).trim().toUpperCase()))) return false;
         if(i.allMlas.some(m => S.ignoredRecs.has(m))) return false;
 
+        // Evitar sugerir el mismo candidato libre en ambas cuentas (desempate por métricas)
+        const mySkus = i.skusArray.map(s => String(s).trim().toUpperCase());
+        const twins = consolidatedListings.filter(twin => 
+          twin.account === otherAcc &&
+          twin.status === 'active' &&
+          twin.stock > 5 &&
+          !twin.hasAds &&
+          twin.skusArray.some(ts => mySkus.includes(String(ts).trim().toUpperCase()))
+        );
+        
+        if (twins.length > 0) {
+          const bestTwin = twins.sort((a,b) => {
+            if(b.sold_quantity !== a.sold_quantity) return b.sold_quantity - a.sold_quantity;
+            return b.stock - a.stock;
+          })[0];
+          
+          if (bestTwin.sold_quantity > i.sold_quantity) return false; // El otro vende más
+          if (bestTwin.sold_quantity === i.sold_quantity && bestTwin.stock > i.stock) return false; // El otro tiene más stock
+          if (bestTwin.sold_quantity === i.sold_quantity && bestTwin.stock === i.stock && otherAcc < acc) return false; // Empate absoluto, prioriza alfabético
+        }
         return true;
       });
 
@@ -2476,12 +2482,7 @@ function calcP(){
 // ── ALERTS ────────────────────────────────────────────────────
 function buildAlerts(){
   const cont=$('alerts-list');const al=[];
-  Object.values(skuMap).filter(s=>s.maraioAdCount>1||s.maraio2AdCount>1).forEach(s=>{
-    let accInfo = [];
-    if(s.maraioAdCount>1) accInfo.push('maraio');
-    if(s.maraio2AdCount>1) accInfo.push('maraio2');
-    al.push({type:'ad',icon:'🚨',title:`Conflicto SKU: ${s.sku}`,sub:`Múltiples publicaciones con publicidad activa en la misma cuenta (${accInfo.join(', ')})`});
-  });
+  Object.values(skuMap).filter(s=>s.maraio?.status==='active'&&s.maraio2?.status==='active').forEach(s=>{al.push({type:'ad',icon:'🚨',title:`Conflicto SKU: ${s.sku}`,sub:`Activo en maraio Y maraio2 simultáneamente`});});
   allListings.filter(i=>i.available_quantity===0).forEach(i=>al.push({type:'ad',icon:'🚫',title:`Sin stock: ${i.title?.substring(0,40)}`,sub:`${i.account} · SKU ${i.sku||i.id}`}));
   allListings.filter(i=>i.available_quantity>0&&i.available_quantity<=3).forEach(i=>al.push({type:'aw',icon:'📦',title:`Stock bajo: ${i.title?.substring(0,40)}`,sub:`${i.available_quantity} unidades · ${i.account}`}));
   const allAds=[...S.ads.maraio,...S.ads.maraio2];
