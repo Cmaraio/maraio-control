@@ -967,6 +967,7 @@ async function loadAllListings(){
 }
 
 function getSKU(item){
+  if(S.skuOverrides && S.skuOverrides[item.id]) return S.skuOverrides[item.id];
   if(item.seller_custom_field) return item.seller_custom_field;
   if(item.attributes){const s=item.attributes.find(a=>a.id==='SELLER_SKU'||a.id==='SKU');if(s?.value_name)return s.value_name;}
   return item.seller_sku||item.id||'—';
@@ -976,6 +977,10 @@ function getAllSKUs(item){
   const skus = new Set();
   const baseSku = getSKU(item);
   if (baseSku && baseSku !== '—' && baseSku !== item.id) skus.add(baseSku);
+  
+  if (S.skuOverrides && S.skuOverrides[item.id]) {
+    skus.add(String(S.skuOverrides[item.id]).trim().toUpperCase());
+  }
   
   if (item.variations && item.variations.length > 0) {
     item.variations.forEach(v => {
