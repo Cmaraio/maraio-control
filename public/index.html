@@ -1999,6 +1999,15 @@ camp.activeAds.forEach(ad=>{
            detail: `Porque pausaste artículos o subiste el presupuesto en esta campaña. Aquí abajo te sugerimos candidatos para rellenar este cupo.`,
            priority: 3.05, account: acc, id: 'info_req_' + camp.replace(/[^a-z0-9]/gi,'_') + '_' + acc
          });
+         
+         if (toAdd.length === 0) {
+           allDecisions[acc].push({
+             icon: '⚠️', type: 'warn', category: 'add', action: 'SIN CANDIDATOS',
+             title: 'No hay artículos disponibles para agregar',
+             detail: `Los artículos libres detectados se sugirieron en tu otra cuenta para evitar que compitas contra vos misma con el mismo producto. Si querés agregar algo de todas formas, buscalo manualmente en la pestaña "Publicaciones".`,
+             priority: 3.06, account: acc, id: 'add_empty_' + camp.replace(/[^a-z0-9]/gi,'_') + '_' + acc
+           });
+         }
 
          toAdd.forEach((i, idx) => {
            const priceLabel = i.price >= 40000 ? 'Alto margen (≥$40k)' : 'Precio bajo $40k';
