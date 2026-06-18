@@ -1002,19 +1002,34 @@ function getAllSKUs(item){
 
 function buildSKUMap(){
   skuMap={};
-  allListings.forEach(item=>{const sku=item.sku||item.id;if(!skuMap[sku])skuMap[sku]={sku,maraio:null,maraio2:null};skuMap[sku][item.account]=item;});
+  const activeAdsMla = {
+    maraio: new Set((S.ads.maraio||[]).filter(a=>a.status&&a.status.toLowerCase().startsWith('activ')).map(a=>a.mla)),
+    maraio2: new Set((S.ads.maraio2||[]).filter(a=>a.status&&a.status.toLowerCase().startsWith('activ')).map(a=>a.mla))
+  };
+  
+  allListings.forEach(item=>{
+    const sku=item.sku||item.id;
+    if(!skuMap[sku])skuMap[sku]={sku,maraio:null,maraio2:null, adCount:0, mlasInAds:[]};
+    if(!skuMap[sku][item.account] || item.status === 'active') {
+      skuMap[sku][item.account]=item;
+    }
+    if(activeAdsMla[item.account].has(item.id)) {
+      skuMap[sku].adCount++;
+      skuMap[sku].mlasInAds.push(item.account);
+    }
+  });
 }
 
 function filterSKU(){
   const search=$('sku-search').value.toLowerCase();const filter=$('sku-filter').value;
   const tbody=$('sku-tbody');let entries=Object.values(skuMap);
   if(search)entries=entries.filter(e=>e.sku.toLowerCase().includes(search)||(e.maraio?.title||e.maraio2?.title||'').toLowerCase().includes(search));
-  if(filter==='conflict')entries=entries.filter(e=>e.maraio?.status==='active'&&e.maraio2?.status==='active');
+  if(filter==='conflict')entries=entries.filter(e=>e.adCount>1);
   if(filter==='maraio')entries=entries.filter(e=>e.maraio&&!e.maraio2);
   if(filter==='maraio2')entries=entries.filter(e=>!e.maraio&&e.maraio2);
   if(!entries.length){tbody.innerHTML='<tr><td colspan="7"><div class="es"><p>Sin resultados</p></div></td></tr>';return;}
   tbody.innerHTML=entries.map(e=>{
-    const isConflict=e.maraio?.status==='active'&&e.maraio2?.status==='active';
+    const isConflict=e.adCount>1;
     const item=e.maraio||e.maraio2;const price=e.maraio?.price||e.maraio2?.price||0;
     const stock=(e.maraio?.available_quantity||0)+(e.maraio2?.available_quantity||0);
     return `<tr class="${isConflict?'conflict':''}">
@@ -2482,7 +2497,7 @@ function calcP(){
 // ── ALERTS ────────────────────────────────────────────────────
 function buildAlerts(){
   const cont=$('alerts-list');const al=[];
-  Object.values(skuMap).filter(s=>s.maraio?.status==='active'&&s.maraio2?.status==='active').forEach(s=>{al.push({type:'ad',icon:'🚨',title:`Conflicto SKU: ${s.sku}`,sub:`Activo en maraio Y maraio2 simultáneamente`});});
+  Object.values(skuMap).filter(s=>s.adCount>1).forEach(s=>{al.push({type:'ad',icon:'🚨',title:`Conflicto SKU: ${s.sku}`,sub:`Este SKU tiene múltiples publicidades activas (${s.mlasInAds.join(', ')})`});});
   allListings.filter(i=>i.available_quantity===0).forEach(i=>al.push({type:'ad',icon:'🚫',title:`Sin stock: ${i.title?.substring(0,40)}`,sub:`${i.account} · SKU ${i.sku||i.id}`}));
   allListings.filter(i=>i.available_quantity>0&&i.available_quantity<=3).forEach(i=>al.push({type:'aw',icon:'📦',title:`Stock bajo: ${i.title?.substring(0,40)}`,sub:`${i.available_quantity} unidades · ${i.account}`}));
   const allAds=[...S.ads.maraio,...S.ads.maraio2];
