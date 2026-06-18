@@ -291,13 +291,13 @@ function parseSKUFile(file){
       let headerRow=-1;
       for(let i=0;i<Math.min(raw.length,50);i++){
         const rowStr=raw[i].map(c=>String(c).toLowerCase()).join('|');
-        if(rowStr.includes('sku')||rowStr.includes('publicaci')||rowStr.includes('item')||rowStr.includes('mla')){headerRow=i;break;}
+        if(rowStr.includes('sku')||rowStr.includes('publicaci')||rowStr.includes('item')||rowStr.includes('mla')||rowStr.includes('id')||rowStr.includes('código')||rowStr.includes('codigo')||rowStr.includes('variante')){headerRow=i;break;}
       }
       if(headerRow===-1){toast('No se detectaron columnas de SKU o ID en el archivo','error');return;}
       
       const headers=raw[headerRow].map(h=>String(h).trim().toLowerCase());
-      const mlaIdx = headers.findIndex(h=>h.includes('mla')||h.includes('publicaci')||h.includes('item'));
-      const skuIdx = headers.findIndex(h=>h.includes('sku')||h.includes('referencia')||h==='sku');
+      const mlaIdx = headers.findIndex(h=>h.includes('mla')||h.includes('publicaci')||h.includes('item')||h.includes('id')||h==='código'||h==='codigo');
+      const skuIdx = headers.findIndex(h=>h.includes('sku')||h.includes('referencia')||h.includes('variante')||h.includes('código')||h.includes('codigo'));
       
       if(mlaIdx===-1 || skuIdx===-1){toast('No se encontraron las columnas de ID y SKU','error');return;}
       
