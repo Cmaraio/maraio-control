@@ -1831,7 +1831,7 @@ camp.activeAds.forEach(ad=>{
     mlaMap[mlaKey]={
       mla: ad.mla,
       allMlas: new Set([ad.mla]),
-      title: (ad.title || '').split('-')[0].trim() || ad.title,
+      title: (ad.title || '').split('-')[0].trim() || (ad.title || ''),
       clicks:0,sales:0,spend:0,impressions:0,
       roas:null,acos:null,
       campaign:camp.name,account:acc
@@ -1859,7 +1859,7 @@ Object.values(mlaMap).forEach(pub=>{
   const pubAcos=pub.acos;
   
   const mlaDisplay = pub.allMlas.size > 1 ? pub.allMlas.size + ' variantes' : pub.mla;
-  const cleanTitle = pub.title.replace(/\b(Ar|ar)\b/g, '').replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Bordo|Beige|Marron|Marrón|Rosa|Fucsia|Verde|Amarillo)\b.*/gi, '').replace(/\s+\d{2,3}(?:\/\d{1,2})?\s*$/g, '').trim() || pub.title;
+  const cleanTitle = (pub.title || '').replace(/\b(Ar|ar)\b/g, '').replace(/\s+(Negro|Blanco|Rojo|Azul|Gris|Bordo|Beige|Marron|Marrón|Rosa|Fucsia|Verde|Amarillo)\b.*/gi, '').replace(/\s+\d{2,3}(?:\/\d{1,2})?\s*$/g, '').trim() || pub.title || '';
   // 0 ventas con inversión significativa → PAUSAR
   if(pub.clicks>30&&pub.sales===0&&pub.spend>100){
     allDecisions[acc].push({icon:'🔍',type:'warn',category:'pause',action:'SIN VENTAS',
