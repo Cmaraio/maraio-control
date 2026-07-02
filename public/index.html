@@ -1831,7 +1831,7 @@ camp.activeAds.forEach(ad=>{
     mlaMap[mlaKey]={
       mla: ad.mla,
       allMlas: new Set([ad.mla]),
-      title: ad.title.split('-')[0].trim() || ad.title,
+      title: (ad.title || '').split('-')[0].trim() || ad.title,
       clicks:0,sales:0,spend:0,impressions:0,
       roas:null,acos:null,
       campaign:camp.name,account:acc
